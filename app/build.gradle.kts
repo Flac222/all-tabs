@@ -3,8 +3,7 @@ plugins {
     alias(libs.plugins.jetbrainsKotlinAndroid)
     alias(libs.plugins.hilt)
     alias(libs.plugins.ksp)
-    // NOTE: Uncomment the line below once google-services.json is added to the app/ directory
-    // alias(libs.plugins.googleServices)
+    alias(libs.plugins.googleServices)
 }
 
 android {
@@ -64,6 +63,8 @@ dependencies {
     implementation(libs.androidx.ui.graphics)
     implementation(libs.androidx.ui.tooling.preview)
     implementation(libs.androidx.material3)
+    implementation(libs.androidx.core.splashscreen)
+    implementation(libs.androidx.navigation.compose)
 
     // Hilt
     implementation(libs.hilt.android)
@@ -88,6 +89,7 @@ dependencies {
     implementation(libs.firebase.auth)
     implementation(libs.firebase.firestore)
     implementation(libs.firebase.database)
+    implementation(libs.play.services.auth)
 
     // Coroutines
     implementation(libs.coroutines.core)

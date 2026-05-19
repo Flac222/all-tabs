@@ -6,16 +6,19 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 
+import androidx.compose.ui.graphics.Color
+
 private val DarkColorScheme = darkColorScheme(
     primary = PrimaryColor,
     secondary = SecondaryColor,
-    tertiary = PrimaryVariantColor
-)
-
-private val LightColorScheme = lightColorScheme(
-    primary = PrimaryColor,
-    secondary = SecondaryColor,
-    tertiary = PrimaryVariantColor
+    tertiary = PrimaryVariantColor,
+    background = BackgroundDark,
+    surface = SurfaceDark,
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onBackground = TextPrimaryDark,
+    onSurface = TextPrimaryDark,
+    surfaceVariant = SurfaceDark
 )
 
 @Composable
@@ -23,14 +26,8 @@ fun AllTabsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) {
-        DarkColorScheme
-    } else {
-        LightColorScheme
-    }
-
     MaterialTheme(
-        colorScheme = colorScheme,
+        colorScheme = DarkColorScheme, // Force dark mode as per design
         typography = Typography,
         content = content
     )
