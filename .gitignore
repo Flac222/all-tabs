@@ -32,3 +32,16 @@ ALLTABS_PROJECT_MANIFEST.md
 
 # Google services
 app/google-services.json
+
+# Gradle generated files
+.gradle/
+build/
+app/build/
+
+# IDE files
+.idea/
+*.iml
+local.properties
+
+# Profiling
+*.hprof
