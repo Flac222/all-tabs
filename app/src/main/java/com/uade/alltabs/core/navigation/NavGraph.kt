@@ -6,15 +6,11 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 
 @Composable
-fun NavGraph(navController: NavHostController, startDestination: String = Screen.Splash.route) {
+fun NavGraph(navController: NavHostController, startDestination: String) {
     NavHost(
         navController = navController,
         startDestination = startDestination
     ) {
-        composable(route = Screen.Splash.route) {
-            // Placeholder for Splash Screen
-        }
-        
         composable(route = Screen.Login.route) {
             // Placeholder for Login Screen
         }
