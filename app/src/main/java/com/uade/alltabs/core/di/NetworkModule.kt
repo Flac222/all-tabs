@@ -1,5 +1,6 @@
 package com.uade.alltabs.core.di
 
+import com.uade.alltabs.data.remote.MusicBrainzApi
 import dagger.Module
 import dagger.Provides
 import dagger.hilt.InstallIn
@@ -19,5 +20,11 @@ object NetworkModule {
             .baseUrl("https://musicbrainz.org/ws/2/")
             .addConverterFactory(GsonConverterFactory.create())
             .build()
+    }
+
+    @Provides
+    @Singleton
+    fun provideMusicBrainzApi(retrofit: Retrofit): MusicBrainzApi {
+        return retrofit.create(MusicBrainzApi::class.java)
     }
 }
