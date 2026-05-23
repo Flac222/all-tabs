@@ -1,5 +1,6 @@
 package com.uade.alltabs.data.remote
 
+import com.uade.alltabs.data.remote.dto.MusicBrainzResponse
 import retrofit2.http.GET
 import retrofit2.http.Query
 
@@ -8,5 +9,5 @@ interface MusicBrainzApi {
     suspend fun searchRecordings(
         @Query("query") query: String,
         @Query("fmt") format: String = "json"
-    ): Any // To be typed later with proper DTO
+    ): MusicBrainzResponse
 }

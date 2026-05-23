@@ -7,4 +7,5 @@ interface TabRepository {
     fun getAllTabs(): Flow<List<Tab>>
     suspend fun getTabById(id: String): Tab?
     suspend fun saveTab(tab: Tab)
+    suspend fun fetchTabsFromApi(query: String): List<Tab>
 }

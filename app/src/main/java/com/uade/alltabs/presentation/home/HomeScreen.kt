@@ -17,35 +17,53 @@ import com.uade.alltabs.domain.model.Tab
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
-    val recentTabs by viewModel.recentTabs.collectAsStateWithLifecycle()
+    val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("AllTabs") })
         }
     ) { paddingValues ->
-        if (recentTabs.isEmpty()) {
-            Box(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentAlignment = androidx.compose.ui.Alignment.Center
-            ) {
-                Text(
-                    text = "Me see no tabs! You add tabs now!",
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                )
-            }
-        } else {
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(paddingValues),
-                contentPadding = PaddingValues(16.dp)
-            ) {
-                items(recentTabs) { tab ->
-                    TabItemRow(tab = tab)
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(paddingValues),
+            contentAlignment = androidx.compose.ui.Alignment.Center
+        ) {
+            when (val state = uiState) {
+                is HomeUiState.Loading -> {
+                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                }
+                is HomeUiState.Success -> {
+                    if (state.tabs.isEmpty()) {
+                        Text(
+                            text = "Me see no tabs! You add tabs now!",
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+                    } else {
+                        LazyColumn(
+                            modifier = Modifier.fillMaxSize(),
+                            contentPadding = PaddingValues(16.dp)
+                        ) {
+                            items(state.tabs) { tab ->
+                                TabItemRow(tab = tab)
+                            }
+                        }
+                    }
+                }
+                is HomeUiState.Error -> {
+                    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                        Text(
+                            text = state.message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
+                        Spacer(modifier = Modifier.height(16.dp))
+                        Button(onClick = { viewModel.fetchTabs() }) {
+                            Text("Retry Hunt!")
+                        }
+                    }
                 }
             }
         }
