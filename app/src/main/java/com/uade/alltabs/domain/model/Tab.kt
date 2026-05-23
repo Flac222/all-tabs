@@ -5,5 +5,6 @@ data class Tab(
     val title: String,
     val artist: String,
     val content: String,
-    val createdAt: Long
+    val createdAt: Long,
+    val imageUrl: String? = null
 )
