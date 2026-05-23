@@ -12,56 +12,98 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.uade.alltabs.domain.model.Tab
 
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Search
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.text.input.ImeAction
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun HomeScreen(
     viewModel: HomeViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
+    var searchQuery by remember { mutableStateOf("") }
 
     Scaffold(
         topBar = {
             TopAppBar(title = { Text("AllTabs") })
         }
     ) { paddingValues ->
-        Box(
+        Column(
             modifier = Modifier
                 .fillMaxSize()
-                .padding(paddingValues),
-            contentAlignment = androidx.compose.ui.Alignment.Center
+                .padding(paddingValues)
         ) {
-            when (val state = uiState) {
-                is HomeUiState.Loading -> {
-                    CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
-                }
-                is HomeUiState.Success -> {
-                    if (state.tabs.isEmpty()) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = { searchQuery = it },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+                placeholder = { Text("Search for songs, artists...") },
+                leadingIcon = { Icon(Icons.Default.Search, contentDescription = "Search") },
+                singleLine = true,
+                keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                keyboardActions = KeyboardActions(
+                    onSearch = { viewModel.fetchTabs(searchQuery) }
+                ),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = MaterialTheme.colorScheme.primary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f)
+                )
+            )
+
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .weight(1f),
+                contentAlignment = androidx.compose.ui.Alignment.Center
+            ) {
+                when (val state = uiState) {
+                    is HomeUiState.Idle -> {
                         Text(
-                            text = "Me see no tabs! You add tabs now!",
+                            text = "Search for a tab to get started!",
                             style = MaterialTheme.typography.bodyLarge,
                             color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
-                    } else {
-                        LazyColumn(
-                            modifier = Modifier.fillMaxSize(),
-                            contentPadding = PaddingValues(16.dp)
-                        ) {
-                            items(state.tabs) { tab ->
-                                TabItemRow(tab = tab)
+                    }
+                    is HomeUiState.Loading -> {
+                        CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
+                    }
+                    is HomeUiState.Success -> {
+                        if (state.tabs.isEmpty()) {
+                            Text(
+                                text = "Me see no tabs! Try different hunt!",
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        } else {
+                            LazyColumn(
+                                modifier = Modifier.fillMaxSize(),
+                                contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
+                            ) {
+                                items(state.tabs) { tab ->
+                                    TabItemRow(tab = tab)
+                                }
                             }
                         }
                     }
-                }
-                is HomeUiState.Error -> {
-                    Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
-                        Text(
-                            text = state.message,
-                            color = MaterialTheme.colorScheme.error,
-                            style = MaterialTheme.typography.bodyLarge
-                        )
-                        Spacer(modifier = Modifier.height(16.dp))
-                        Button(onClick = { viewModel.fetchTabs() }) {
-                            Text("Retry Hunt!")
+                    is HomeUiState.Error -> {
+                        Column(horizontalAlignment = androidx.compose.ui.Alignment.CenterHorizontally) {
+                            Text(
+                                text = state.message,
+                                color = MaterialTheme.colorScheme.error,
+                                style = MaterialTheme.typography.bodyLarge
+                            )
+                            Spacer(modifier = Modifier.height(16.dp))
+                            Button(onClick = { viewModel.fetchTabs(searchQuery) }) {
+                                Text("Retry Hunt!")
+                            }
                         }
                     }
                 }

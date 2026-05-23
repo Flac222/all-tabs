@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 sealed class HomeUiState {
+    object Idle : HomeUiState()
     object Loading : HomeUiState()
     data class Success(val tabs: List<Tab>) : HomeUiState()
     data class Error(val message: String) : HomeUiState()
@@ -22,14 +23,12 @@ class HomeViewModel @Inject constructor(
     private val fetchTabsUseCase: FetchTabsUseCase
 ) : ViewModel() {
 
-    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Loading)
+    private val _uiState = MutableStateFlow<HomeUiState>(HomeUiState.Idle)
     val uiState: StateFlow<HomeUiState> = _uiState.asStateFlow()
 
-    init {
-        fetchTabs()
-    }
-
-    fun fetchTabs(query: String = "guitar") {
+    fun fetchTabs(query: String) {
+        if (query.isBlank()) return
+        
         viewModelScope.launch {
             _uiState.value = HomeUiState.Loading
             try {
