@@ -28,4 +28,18 @@ class TabRepositoryImpl @Inject constructor(
         val entity = TabEntity(tab.id, tab.title, tab.artist, tab.content, tab.createdAt)
         tabDao.insertTab(entity)
     }
+
+    override suspend fun fetchTabsFromApi(query: String): List<Tab> {
+        val response = musicBrainzApi.searchRecordings(query)
+        return response.recordings.map { recording ->
+            val artistName = recording.artistCredit?.firstOrNull()?.name ?: "Unknown Artist"
+            Tab(
+                id = recording.id,
+                title = recording.title,
+                artist = artistName,
+                content = "Content coming soon...",
+                createdAt = System.currentTimeMillis()
+            )
+        }
+    }
 }
