@@ -1,4 +1,4 @@
-package com.uade.alltabs.presentation.home
+package com.uade.alltabs.presentation.mytabs
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
@@ -19,20 +19,23 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.uade.alltabs.core.navigation.Screen
 import com.uade.alltabs.domain.model.Tab
+import com.uade.alltabs.presentation.components.BottomNavigationBar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun HomeScreen(
-    viewModel: HomeViewModel = hiltViewModel()
+fun MyTabsScreen(
+    navController: NavController,
+    viewModel: MyTabsViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
-    var searchQuery by remember { mutableStateOf("") }
+    val searchQuery by viewModel.searchQuery.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -66,7 +69,7 @@ fun HomeScreen(
             )
         },
         bottomBar = {
-            BottomNavigationBar()
+            BottomNavigationBar(navController)
         },
         containerColor = MaterialTheme.colorScheme.background
     ) { paddingValues ->
@@ -90,7 +93,7 @@ fun HomeScreen(
                         fontWeight = FontWeight.Bold,
                         color = MaterialTheme.colorScheme.onBackground
                     )
-                    val count = if (uiState is HomeUiState.Success) (uiState as HomeUiState.Success).tabs.size else 0
+                    val count = if (uiState is MyTabsUiState.Success) (uiState as MyTabsUiState.Success).tabs.size else 0
                     Text(
                         text = "$count composiciones archivadas", 
                         style = MaterialTheme.typography.bodyMedium,
@@ -98,7 +101,7 @@ fun HomeScreen(
                     )
                 }
                 Button(
-                    onClick = { /* TODO: Create new tab */ },
+                    onClick = { navController.navigate(Screen.Search.route) },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {
@@ -111,7 +114,7 @@ fun HomeScreen(
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { searchQuery = it },
+                onValueChange = { viewModel.onSearchQueryChange(it) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -120,9 +123,6 @@ fun HomeScreen(
                 singleLine = true,
                 shape = RoundedCornerShape(12.dp),
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                keyboardActions = KeyboardActions(
-                    onSearch = { viewModel.fetchTabs(searchQuery) }
-                ),
                 colors = OutlinedTextFieldDefaults.colors(
                     focusedBorderColor = MaterialTheme.colorScheme.primary,
                     unfocusedBorderColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
@@ -141,20 +141,13 @@ fun HomeScreen(
                 contentAlignment = Alignment.Center
             ) {
                 when (val state = uiState) {
-                    is HomeUiState.Idle -> {
-                        Text(
-                            text = "Busca una tablatura para comenzar",
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
-                    }
-                    is HomeUiState.Loading -> {
+                    is MyTabsUiState.Loading -> {
                         CircularProgressIndicator(color = MaterialTheme.colorScheme.primary)
                     }
-                    is HomeUiState.Success -> {
+                    is MyTabsUiState.Success -> {
                         if (state.tabs.isEmpty()) {
                             Text(
-                                text = "No se encontraron resultados",
+                                text = if (searchQuery.isBlank()) "No tienes tablaturas aún" else "No se encontraron resultados",
                                 style = MaterialTheme.typography.bodyLarge,
                                 color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                             )
@@ -169,21 +162,12 @@ fun HomeScreen(
                             }
                         }
                     }
-                    is HomeUiState.Error -> {
-                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            Text(
-                                text = state.message,
-                                color = MaterialTheme.colorScheme.error,
-                                style = MaterialTheme.typography.bodyLarge
-                            )
-                            Spacer(modifier = Modifier.height(16.dp))
-                            Button(
-                                onClick = { viewModel.fetchTabs(searchQuery) },
-                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
-                            ) {
-                                Text("Reintentar")
-                            }
-                        }
+                    is MyTabsUiState.Error -> {
+                        Text(
+                            text = state.message,
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodyLarge
+                        )
                     }
                 }
             }
@@ -207,7 +191,6 @@ fun TabItemRow(tab: Tab) {
                 .padding(12.dp),
             verticalAlignment = Alignment.CenterVertically
         ) {
-            // Album Art or Placeholder via Glide
             Box(
                 modifier = Modifier
                     .size(48.dp)
@@ -223,7 +206,7 @@ fun TabItemRow(tab: Tab) {
                     )
                 } else {
                     Icon(
-                        Icons.Default.PlayArrow, // Fallback music icon
+                        Icons.Default.PlayArrow, 
                         contentDescription = "Music",
                         tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                     )
@@ -269,65 +252,5 @@ fun TabItemRow(tab: Tab) {
                 )
             }
         }
-    }
-}
-
-@Composable
-fun BottomNavigationBar() {
-    NavigationBar(
-        containerColor = MaterialTheme.colorScheme.surface,
-        tonalElevation = 8.dp
-    ) {
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = { Icon(Icons.Default.Home, contentDescription = "Inicio") },
-            label = { Text("Inicio", fontSize = 10.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = { Icon(Icons.Default.Search, contentDescription = "Buscar") },
-            label = { Text("Buscar", fontSize = 10.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = { Icon(Icons.Default.Star, contentDescription = "AI Jam") },
-            label = { Text("AI Jam", fontSize = 10.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        )
-        NavigationBarItem(
-            selected = true,
-            onClick = { },
-            icon = { Icon(Icons.Default.List, contentDescription = "Mis Tabs") },
-            label = { Text("Mis Tabs", fontSize = 10.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                selectedTextColor = MaterialTheme.colorScheme.primary,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        )
-        NavigationBarItem(
-            selected = false,
-            onClick = { },
-            icon = { Icon(Icons.Default.Person, contentDescription = "Perfil") },
-            label = { Text("Perfil", fontSize = 10.sp) },
-            colors = NavigationBarItemDefaults.colors(
-                selectedIconColor = MaterialTheme.colorScheme.primary,
-                unselectedIconColor = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-            )
-        )
     }
 }
