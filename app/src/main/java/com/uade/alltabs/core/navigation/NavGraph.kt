@@ -5,6 +5,9 @@ import androidx.navigation.NavHostController
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import com.uade.alltabs.presentation.auth.LoginScreen
+import com.uade.alltabs.presentation.home.HomeScreen
+import com.uade.alltabs.presentation.mytabs.MyTabsScreen
+import com.uade.alltabs.presentation.search.SearchScreen
 
 @Composable
 fun NavGraph(navController: NavHostController, startDestination: String) {
@@ -23,7 +26,23 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
         }
         
         composable(route = Screen.Home.route) {
-            com.uade.alltabs.presentation.home.HomeScreen()
+            HomeScreen(navController = navController)
+        }
+
+        composable(route = Screen.MyTabs.route) {
+            MyTabsScreen(navController = navController)
+        }
+
+        composable(route = Screen.Search.route) {
+            SearchScreen(navController = navController)
+        }
+
+        composable(route = Screen.AiJam.route) {
+            // Placeholder for AI Jam
+        }
+
+        composable(route = Screen.Profile.route) {
+            // Placeholder for Profile
         }
     }
 }
