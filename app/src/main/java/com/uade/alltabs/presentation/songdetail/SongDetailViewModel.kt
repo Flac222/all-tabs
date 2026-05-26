@@ -1,13 +1,11 @@
-package com.uade.alltabs.presentation.tabdetail
+package com.uade.alltabs.presentation.songdetail
 
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import com.uade.alltabs.domain.model.Tab
 import com.uade.alltabs.domain.repository.TabRepository
+import com.uade.alltabs.domain.usecase.GetTabUseCase
 import com.uade.alltabs.domain.usecase.GetTabsByMbidUseCase
-import com.uade.alltabs.presentation.songdetail.SongDetail
-import com.uade.alltabs.presentation.songdetail.SongDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -17,7 +15,7 @@ import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 @HiltViewModel
-class TabDetailViewModel @Inject constructor(
+class SongDetailViewModel @Inject constructor(
     private val tabRepository: TabRepository,
     private val getTabsByMbidUseCase: GetTabsByMbidUseCase,
     savedStateHandle: SavedStateHandle
@@ -26,6 +24,7 @@ class TabDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<SongDetailUiState>(SongDetailUiState.Idle)
     val uiState: StateFlow<SongDetailUiState> = _uiState.asStateFlow()
 
+    // mbid from navigation arguments
     private val mbid: String? = savedStateHandle["mbid"]
 
     init {
@@ -36,14 +35,27 @@ class TabDetailViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = SongDetailUiState.Loading
             try {
+                // Fetch song details from MusicBrainz (assuming a new API call is added to MusicBrainzApi)
+                // For now, let's mock some data or use the existing TabRepository to fetch a single tab as a placeholder
+                // You would typically have a separate API call for song details
+
+                val songDetailFromApi = tabRepository.getSongDetailFromApi(mbid)
                 val relatedTabs = getTabsByMbidUseCase(mbid)
-                // TODO: Fetch song details from MusicBrainz API (new API call needed)
-                // For now, mock data based on available tab info
+
                 relatedTabs.collectLatest { tabs ->
+                    val firstTab = tabs.firstOrNull()
                     val songDetail = SongDetail(
                         mbid = mbid,
-                        titulo = tabs.firstOrNull()?.titulo ?: "Unknown Title",
-                        artista = tabs.firstOrNull()?.artista ?: "Unknown Artist",
+                        titulo = songDetailFromApi?.titulo ?: firstTab?.titulo ?: "Unknown Title",
+                        artista = songDetailFromApi?.artista ?: firstTab?.artista ?: "Unknown Artist",
+                        year = songDetailFromApi?.fechaCreacion?.let { 
+                            try {
+                                java.text.SimpleDateFormat("yyyy").format(java.util.Date(it))
+                            } catch (e: Exception) {
+                                null
+                            }
+                        },
+                        genre = songDetailFromApi?.acordes, // Reusing 'acordes' for genre temporarily
                         tabs = tabs
                     )
                     _uiState.value = SongDetailUiState.Success(songDetail)
@@ -54,4 +66,3 @@ class TabDetailViewModel @Inject constructor(
         }
     }
 }
-

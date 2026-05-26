@@ -8,6 +8,8 @@ import com.uade.alltabs.presentation.auth.LoginScreen
 import com.uade.alltabs.presentation.home.HomeScreen
 import com.uade.alltabs.presentation.mytabs.MyTabsScreen
 import com.uade.alltabs.presentation.search.SearchScreen
+import com.uade.alltabs.presentation.songdetail.SongDetailScreen
+import com.uade.alltabs.presentation.createTab.CreateTabScreen
 
 @Composable
 fun NavGraph(navController: NavHostController, startDestination: String) {
@@ -43,6 +45,25 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
 
         composable(route = Screen.Profile.route) {
             // Placeholder for Profile
+        }
+
+        composable(route = Screen.SongDetail.route + "/{mbid}") { backStackEntry ->
+            val mbid = backStackEntry.arguments?.getString("mbid")
+            SongDetailScreen(navController = navController, mbid = mbid)
+        }
+
+        composable(
+            route = Screen.CreateTab.routeWithArgs,
+            arguments = listOf(
+                androidx.navigation.navArgument("title") { nullable = true },
+                androidx.navigation.navArgument("artist") { nullable = true },
+                androidx.navigation.navArgument("mbid") { nullable = true }
+            )
+        ) { backStackEntry ->
+            val title = backStackEntry.arguments?.getString("title")
+            val artist = backStackEntry.arguments?.getString("artist")
+            val mbid = backStackEntry.arguments?.getString("mbid")
+            CreateTabScreen(navController = navController, initialTitle = title, initialArtist = artist, mbid = mbid)
         }
     }
 }

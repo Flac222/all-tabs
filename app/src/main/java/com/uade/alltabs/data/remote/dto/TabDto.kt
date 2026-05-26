@@ -6,6 +6,7 @@ import com.google.firebase.firestore.ServerTimestamp
 data class TabDto(
     val id: String = "",
     val userId: String = "",
+    val userName: String = "",
     val mbid: String? = null,
     val titulo: String = "",
     val artista: String = "",

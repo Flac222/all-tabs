@@ -40,14 +40,12 @@ class MyTabsViewModel @Inject constructor(
 
     val uiState: StateFlow<MyTabsUiState> = combine(
         _myTabs,
-        _favoriteTabs,
         _searchQuery
-    ) { myTabs, favTabs, query ->
-        val allTabs = (myTabs + favTabs).distinctBy { it.id }
+    ) { myTabs, query ->
         val filteredTabs = if (query.isBlank()) {
-            allTabs
+            myTabs
         } else {
-            allTabs.filter { 
+            myTabs.filter { 
                 it.titulo.contains(query, ignoreCase = true) || 
                 it.artista.contains(query, ignoreCase = true) 
             }
@@ -60,27 +58,21 @@ class MyTabsViewModel @Inject constructor(
     )
 
     init {
-        loadMyTabsAndFavorites()
+        loadMyTabs()
     }
 
     fun onSearchQueryChange(query: String) {
         _searchQuery.value = query
     }
 
-    private fun loadMyTabsAndFavorites() {
+    private fun loadMyTabs() {
         val userId = firebaseAuth.currentUser?.uid
 
         if (userId != null) {
             viewModelScope.launch {
-                combine(
-                    getTabsByUserIdUseCase(userId),
-                    getFavoriteTabsUseCase(userId)
-                ) { userTabs, favTabs ->
-                    // Ensure no duplicates if a user's own tab is also favorited
-                    val allTabs = (userTabs + favTabs).distinctBy { it.id }
+                getTabsByUserIdUseCase(userId).collect { userTabs ->
                     _myTabs.value = userTabs
-                    _favoriteTabs.value = favTabs
-                }.collect { }
+                }
             }
         }
     }
