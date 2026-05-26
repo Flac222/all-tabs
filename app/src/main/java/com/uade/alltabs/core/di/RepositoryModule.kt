@@ -1,7 +1,7 @@
 package com.uade.alltabs.core.di
 
-import com.uade.alltabs.data.repository.TabRepositoryImpl
 import com.uade.alltabs.domain.repository.TabRepository
+import com.uade.alltabs.data.repository.TabRepositoryImpl
 import dagger.Binds
 import dagger.Module
 import dagger.hilt.InstallIn
@@ -14,7 +14,5 @@ abstract class RepositoryModule {
 
     @Binds
     @Singleton
-    abstract fun bindTabRepository(
-        tabRepositoryImpl: TabRepositoryImpl
-    ): TabRepository
+    abstract fun bindTabRepository(tabRepositoryImpl: TabRepositoryImpl): TabRepository
 }
