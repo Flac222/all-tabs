@@ -11,7 +11,7 @@ class GetRecentTabsUseCase @Inject constructor(
 ) {
     operator fun invoke(): Flow<List<Tab>> {
         return tabRepository.getAllTabs().map { tabs ->
-            tabs.sortedByDescending { it.createdAt }
+            tabs.sortedByDescending { it.fechaCreacion }
         }
     }
 }

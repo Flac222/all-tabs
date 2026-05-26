@@ -114,7 +114,7 @@ fun MyTabsScreen(
             // Search Bar
             OutlinedTextField(
                 value = searchQuery,
-                onValueChange = { viewModel.onSearchQueryChange(it) },
+                onValueChange = { query: String -> viewModel.onSearchQueryChange(query) },
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 8.dp),
@@ -198,33 +198,26 @@ fun TabItemRow(tab: Tab) {
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                if (tab.imageUrl != null) {
-                    GlideImage(
-                        model = tab.imageUrl,
-                        contentDescription = "Album Art",
-                        modifier = Modifier.fillMaxSize()
-                    )
-                } else {
-                    Icon(
-                        Icons.Default.PlayArrow, 
-                        contentDescription = "Music",
-                        tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
-                    )
-                }
+                // For now, show placeholder as Tab doesn't have imageUrl yet
+                Icon(
+                    Icons.Default.PlayArrow, 
+                    contentDescription = "Music",
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = tab.title, 
+                    text = tab.titulo, 
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = tab.artist, 
+                        text = tab.artista,
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                     )
