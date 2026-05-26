@@ -101,7 +101,10 @@ fun MyTabsScreen(
                     )
                 }
                 Button(
-                    onClick = { navController.navigate(Screen.Search.route) },
+                    onClick = { 
+                        // Navigate to CreateTab screen
+                        navController.navigate(Screen.CreateTab.route)
+                    },
                     colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(8.dp)
                 ) {

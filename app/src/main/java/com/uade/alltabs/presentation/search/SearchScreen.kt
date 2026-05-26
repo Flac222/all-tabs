@@ -22,9 +22,8 @@ import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
-import com.bumptech.glide.integration.compose.GlideImage
-import com.uade.alltabs.domain.model.Tab
 import com.uade.alltabs.presentation.components.BottomNavigationBar
+import com.uade.alltabs.core.navigation.Screen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -125,8 +124,13 @@ fun SearchScreen(
                                 modifier = Modifier.fillMaxSize(),
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
-                                items(state.results) { tab ->
-                                    SearchResultRow(tab = tab, onClick = { /* TODO: Navigate to Detail */ })
+                                items(state.results) { songSearchResult ->
+                                    SearchResultRow(
+                                        song = songSearchResult,
+                                        onClick = { 
+                                            navController.navigate(Screen.SongDetail.route + "/${songSearchResult.mbid}")
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -152,7 +156,7 @@ fun SearchScreen(
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun SearchResultRow(tab: Tab, onClick: () -> Unit) {
+fun SearchResultRow(song: SongSearchResult, onClick: () -> Unit) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -174,9 +178,9 @@ fun SearchResultRow(tab: Tab, onClick: () -> Unit) {
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                // For now, show placeholder as Tab doesn't have imageUrl yet
+                // For now, show placeholder as we don't have album art from MusicBrainz yet
                 Icon(
-                    Icons.Default.PlayArrow, 
+                    Icons.Default.PlayArrow,
                     contentDescription = "Music",
                     tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
@@ -186,18 +190,42 @@ fun SearchResultRow(tab: Tab, onClick: () -> Unit) {
 
             Column(modifier = Modifier.weight(1f)) {
                 Text(
-                    text = tab.titulo, 
+                    text = song.titulo, 
                     style = MaterialTheme.typography.titleMedium,
                     fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface
                 )
                 Text(
-                    text = tab.artista,
+                    text = song.artista,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f)
                 )
             }
             
+            if (song.tabCount > 0) {
+                Column(horizontalAlignment = Alignment.End) {
+                    Text(
+                        text = "${song.tabCount} tabs",
+                        style = MaterialTheme.typography.labelSmall,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.secondary
+                    )
+                    song.tabCreators.firstOrNull()?.let { (userId, username) ->
+                        Text(
+                            text = "by $username",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                        )
+                    }
+                }
+            } else {
+                Text(
+                    text = "Sin tabs",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.3f)
+                )
+            }
+
             Icon(
                 Icons.Default.KeyboardArrowRight,
                 contentDescription = null,

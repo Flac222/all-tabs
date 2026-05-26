@@ -17,6 +17,8 @@ interface TabRepository {
     fun getTabsByUserId(userId: String): Flow<List<Tab>>
     fun getFavoriteTabs(userId: String): Flow<List<Tab>>
     fun getAllTabs(): Flow<List<Tab>> // For searching all public tabs, if applicable
+    suspend fun getTabCountsForSongs(mbids: List<String>): Map<String, List<Pair<String, String>>>
+    suspend fun getSongDetailFromApi(mbid: String): Tab? // Assuming Tab can represent basic song detail
 
     suspend fun addFavorite(userId: String, tabId: String, titulo: String, artista: String)
     suspend fun removeFavorite(userId: String, tabId: String)

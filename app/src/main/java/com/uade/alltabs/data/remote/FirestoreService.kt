@@ -4,6 +4,7 @@ import com.google.firebase.firestore.FirebaseFirestore
 import com.uade.alltabs.data.remote.dto.FavoriteDto
 import com.uade.alltabs.data.remote.dto.TabDto
 import com.uade.alltabs.data.remote.dto.UserDto
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -44,70 +45,114 @@ class FirestoreService @Inject constructor(
     }
 
     suspend fun getTab(tabId: String): TabDto? {
-        return firestore.collection(TABS_COLLECTION)
+        val doc = firestore.collection(TABS_COLLECTION)
             .document(tabId)
             .get()
             .await()
-            .toObject(TabDto::class.java)
+        
+        return if (doc.exists()) {
+            try {
+                doc.toObject(TabDto::class.java)
+            } catch (e: Exception) {
+                mapDocumentToTabDto(doc)
+            }
+        } else null
     }
 
-    suspend fun getTabsByUserId(userId: String): List<TabDto> {
-        return firestore.collection(TABS_COLLECTION)
-            .whereEqualTo("userId", userId)
-            .get()
-            .await()
-            .documents
-            .mapNotNull { doc ->
-                try {
-                    doc.toObject(TabDto::class.java)
-                } catch (e: Exception) {
-                    val userIdValue = when (val rawUserId = doc.get("userId")) {
-                        is String -> rawUserId
-                        is com.google.firebase.firestore.DocumentReference -> rawUserId.id
-                        else -> userId
+    fun getTabsByUserIdFlow(userId: String): kotlinx.coroutines.flow.Flow<List<TabDto>> = kotlinx.coroutines.flow.callbackFlow {
+        // We listen to all tabs and filter in memory because Firestore "whereEqualTo" with a String 
+        // won't match a DocumentReference.
+        val registration = firestore.collection(TABS_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val tabs = snapshot.documents.mapNotNull { doc ->
+                        val tabDto = try {
+                            doc.toObject(TabDto::class.java)
+                        } catch (e: Exception) {
+                            mapDocumentToTabDto(doc)
+                        }
+                        
+                        if (tabDto?.userId == userId) tabDto else null
                     }
-                    TabDto(
-                        id = doc.id,
-                        userId = userIdValue,
-                        mbid = doc.getString("mbid"),
-                        titulo = doc.getString("titulo") ?: "",
-                        artista = doc.getString("artista") ?: "",
-                        acordes = doc.getString("acordes") ?: "",
-                        esIA = doc.getBoolean("esIA") ?: false,
-                        esFavorito = doc.getBoolean("esFavorito") ?: false,
-                        fechaCreacion = doc.getTimestamp("fechaCreacion")
-                    )
+                    trySend(tabs)
                 }
             }
+        awaitClose { registration.remove() }
     }
 
-    suspend fun getAllTabs(): List<TabDto> {
-        return firestore.collection(TABS_COLLECTION)
-            .get()
-            .await()
-            .documents
-            .mapNotNull { doc ->
-                try {
-                    doc.toObject(TabDto::class.java)
-                } catch (e: Exception) {
-                    val userIdValue = when (val rawUserId = doc.get("userId")) {
-                        is String -> rawUserId
-                        is com.google.firebase.firestore.DocumentReference -> rawUserId.id
-                        else -> ""
+    fun getAllTabsFlow(): kotlinx.coroutines.flow.Flow<List<TabDto>> = kotlinx.coroutines.flow.callbackFlow {
+        val registration = firestore.collection(TABS_COLLECTION)
+            .addSnapshotListener { snapshot, error ->
+                if (error != null) {
+                    close(error)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    val tabs = snapshot.documents.mapNotNull { doc ->
+                        try {
+                            doc.toObject(TabDto::class.java)
+                        } catch (e: Exception) {
+                            mapDocumentToTabDto(doc)
+                        }
                     }
-                    TabDto(
-                        id = doc.id,
-                        userId = userIdValue,
-                        mbid = doc.getString("mbid"),
-                        titulo = doc.getString("titulo") ?: "",
-                        artista = doc.getString("artista") ?: "",
-                        acordes = doc.getString("acordes") ?: "",
-                        esIA = doc.getBoolean("esIA") ?: false,
-                        esFavorito = doc.getBoolean("esFavorito") ?: false,
-                        fechaCreacion = doc.getTimestamp("fechaCreacion")
-                    )
+                    trySend(tabs)
                 }
             }
+        awaitClose { registration.remove() }
+    }
+
+    private fun mapDocumentToTabDto(doc: com.google.firebase.firestore.DocumentSnapshot): TabDto {
+        val userIdValue = when (val rawUserId = doc.get("userId")) {
+            is String -> rawUserId
+            is com.google.firebase.firestore.DocumentReference -> rawUserId.id
+            else -> ""
+        }
+        
+        return TabDto(
+            id = doc.id,
+            userId = userIdValue,
+            userName = doc.getString("userName") ?: "",
+            mbid = doc.getString("mbid"),
+            titulo = doc.getString("titulo") ?: "",
+            artista = doc.getString("artista") ?: "",
+            acordes = doc.getString("acordes") ?: "",
+            esIA = doc.getBoolean("esIA") ?: false,
+            esFavorito = doc.getBoolean("esFavorito") ?: false,
+            fechaCreacion = doc.getTimestamp("fechaCreacion")
+        )
+    }
+
+    suspend fun getTabCountsForMbids(mbids: List<String>): Map<String, List<Pair<String, String>>> {
+        if (mbids.isEmpty()) return emptyMap()
+
+        val result = mutableMapOf<String, MutableList<Pair<String, String>>>()
+
+        // Firestore `in` query is limited to 10 items. Batch if necessary.
+        mbids.chunked(10).forEach {
+            val querySnapshot = firestore.collection(TABS_COLLECTION)
+                .whereIn("mbid", it)
+                .get()
+                .await()
+            
+            for (document in querySnapshot.documents) {
+                val mbid = document.getString("mbid")
+                val userId = when (val rawUserId = document.get("userId")) {
+                    is String -> rawUserId
+                    is com.google.firebase.firestore.DocumentReference -> rawUserId.id
+                    else -> null
+                }
+                val username = document.getString("userName") ?: "Unknown User"
+
+                if (mbid != null && userId != null) {
+                    result.getOrPut(mbid) { mutableListOf() }.add(Pair(userId, username))
+                }
+            }
+        }
+        return result
     }
 
     suspend fun deleteTab(tabId: String) {

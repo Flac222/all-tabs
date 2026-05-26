@@ -44,9 +44,10 @@ class TabRepositoryImpl @Inject constructor(
         return firestoreService.isTabFavorited(userId, tabId)
     }
 
-    override fun getTabsByUserId(userId: String): Flow<List<Tab>> = flow {
-        val tabs = firestoreService.getTabsByUserId(userId).map { it.toDomain() }
-        emit(tabs)
+    override fun getTabsByUserId(userId: String): Flow<List<Tab>> {
+        return firestoreService.getTabsByUserIdFlow(userId).map { dtos ->
+            dtos.map { it.toDomain() }
+        }
     }
 
     override fun getFavoriteTabs(userId: String): Flow<List<Tab>> = flow {
@@ -59,9 +60,34 @@ class TabRepositoryImpl @Inject constructor(
         emit(favoriteTabs)
     }
 
-    override fun getAllTabs(): Flow<List<Tab>> = flow {
-        val tabs = firestoreService.getAllTabs().map { it.toDomain() }
-        emit(tabs)
+    override fun getAllTabs(): Flow<List<Tab>> {
+        return firestoreService.getAllTabsFlow().map { dtos ->
+            dtos.map { it.toDomain() }
+        }
+    }
+
+    override suspend fun getTabCountsForSongs(mbids: List<String>): Map<String, List<Pair<String, String>>> {
+        return firestoreService.getTabCountsForMbids(mbids)
+    }
+
+    override suspend fun getSongDetailFromApi(mbid: String): Tab? {
+        return try {
+            val response = musicBrainzApi.getRecordingDetail(mbid)
+            Tab(
+                id = response.id,
+                userId = "", // Not applicable for MusicBrainz song detail
+                userName = "",
+                mbid = response.id,
+                titulo = response.title,
+                artista = response.artistCredit?.joinToString(", ") { it.name } ?: "Unknown Artist",
+                acordes = "", // Not applicable for MusicBrainz song detail
+                esIA = false,
+                esFavorito = false,
+                fechaCreacion = 0L // Not applicable for MusicBrainz song detail
+            )
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun addFavorite(userId: String, tabId: String, titulo: String, artista: String) {
@@ -80,6 +106,7 @@ class TabRepositoryImpl @Inject constructor(
                 Tab(
                     id = recording.id,
                     userId = "",
+                    userName = "",
                     mbid = recording.id,
                     titulo = recording.title,
                     artista = recording.artistCredit?.joinToString(", ") { it.name } ?: "Unknown Artist",
@@ -107,6 +134,7 @@ class TabRepositoryImpl @Inject constructor(
         return TabDto(
             id = id,
             userId = userId,
+            userName = userName,
             mbid = mbid,
             titulo = titulo,
             artista = artista,
@@ -121,6 +149,7 @@ class TabRepositoryImpl @Inject constructor(
         return Tab(
             id = id,
             userId = userId,
+            userName = userName,
             mbid = mbid,
             titulo = titulo,
             artista = artista,
