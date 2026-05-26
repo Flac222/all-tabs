@@ -3,7 +3,6 @@ package com.uade.alltabs.presentation.auth
 import android.app.Activity
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -14,7 +13,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -43,10 +41,10 @@ fun LoginScreen(
                     viewModel.signInWithGoogle(idToken)
                 }
             } catch (e: ApiException) {
-                viewModel.setError("Google Sign In failed: ${e.message} (Code: ${e.statusCode})")
+                viewModel.setError("Google Sign In failed: ${e.message}")
             }
         } else {
-            viewModel.setError("Google Sign In canceled or failed. Result code: ${result.resultCode}")
+            viewModel.setError("Google Sign In canceled")
         }
     }
 
@@ -94,14 +92,6 @@ fun LoginScreen(
                 color = Color(0xFFE58034)
             )
             
-            Text(
-                text = "ELEVATE YOUR PLAYING",
-                fontSize = 12.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = Color(0xFFA0A0A0),
-                letterSpacing = 1.5.sp
-            )
-            
             Spacer(modifier = Modifier.height(48.dp))
             
             Text(
@@ -111,20 +101,11 @@ fun LoginScreen(
                 color = Color(0xFFF5F5F5)
             )
             
-            Spacer(modifier = Modifier.height(8.dp))
-            
-            Text(
-                text = "Join the global community of guitarists",
-                fontSize = 14.sp,
-                color = Color(0xFFA0A0A0)
-            )
-            
             Spacer(modifier = Modifier.height(48.dp))
 
             if (authState is AuthState.Loading) {
                 CircularProgressIndicator(color = Color(0xFFE58034))
             } else {
-                // Continue with Google Button
                 Button(
                     onClick = {
                         val gso = GoogleSignInOptions.Builder(GoogleSignInOptions.DEFAULT_SIGN_IN)
@@ -150,83 +131,17 @@ fun LoginScreen(
                     )
                 }
 
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Continue with Email Button
-                Button(
-                    onClick = { 
-                        android.widget.Toast.makeText(context, "Email Sign In coming soon!", android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFF1E1E1E),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Continue with Email",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Medium
-                    )
-                }
-
-                Spacer(modifier = Modifier.height(32.dp))
-
-                Text(
-                    text = "NEW HERE?",
-                    fontSize = 12.sp,
-                    color = Color(0xFFA0A0A0),
-                    letterSpacing = 1.sp
-                )
-
-                Spacer(modifier = Modifier.height(16.dp))
-
-                // Create Free Account Button
-                Button(
-                    onClick = { 
-                        android.widget.Toast.makeText(context, "Registration coming soon!", android.widget.Toast.LENGTH_SHORT).show()
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp),
-                    shape = RoundedCornerShape(8.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = Color(0xFFE58034),
-                        contentColor = Color.White
-                    )
-                ) {
-                    Text(
-                        text = "Create Free Account",
-                        fontSize = 16.sp,
-                        fontWeight = FontWeight.Bold
-                    )
-                }
-
                 if (authState is AuthState.Error) {
                     Spacer(modifier = Modifier.height(16.dp))
                     Text(
                         text = (authState as AuthState.Error).message,
                         color = MaterialTheme.colorScheme.error,
-                        fontSize = 14.sp,
-                        textAlign = androidx.compose.ui.text.style.TextAlign.Center
+                        fontSize = 14.sp
                     )
                 }
             }
 
             Spacer(modifier = Modifier.weight(1f))
-
-            Text(
-                text = "By continuing, you agree to our Terms of Service and Privacy Policy.\n© 2024 AllTabs Studio. Built for guitarists.",
-                fontSize = 10.sp,
-                color = Color(0xFFA0A0A0),
-                textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                lineHeight = 14.sp
-            )
-            
-            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 }

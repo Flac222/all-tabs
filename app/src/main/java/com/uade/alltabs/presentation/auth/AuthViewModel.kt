@@ -11,6 +11,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import com.uade.alltabs.domain.repository.TabRepository
 import com.uade.alltabs.domain.model.User
+import com.uade.alltabs.domain.usecase.SignOutUseCase
 import kotlinx.coroutines.tasks.await
 import javax.inject.Inject
 
@@ -24,11 +25,17 @@ sealed class AuthState {
 @HiltViewModel
 class AuthViewModel @Inject constructor(
     private val firebaseAuth: FirebaseAuth,
-    private val repository: TabRepository
+    private val repository: TabRepository,
+    private val signOutUseCase: SignOutUseCase
 ) : ViewModel() {
 
     private val _authState = MutableStateFlow<AuthState>(AuthState.Idle)
     val authState: StateFlow<AuthState> = _authState.asStateFlow()
+
+    fun signOut() {
+        signOutUseCase()
+        _authState.value = AuthState.Idle
+    }
 
     fun signInWithGoogle(idToken: String) {
         viewModelScope.launch {
