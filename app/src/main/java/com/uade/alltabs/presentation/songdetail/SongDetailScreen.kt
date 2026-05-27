@@ -1,6 +1,5 @@
 package com.uade.alltabs.presentation.songdetail
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -19,21 +18,25 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
+import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
+import com.bumptech.glide.integration.compose.GlideImage
 import com.uade.alltabs.core.navigation.Screen
 import com.uade.alltabs.presentation.components.BottomNavigationBar
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalGlideComposeApi::class)
 @Composable
 fun SongDetailScreen(
     navController: NavController,
     mbid: String?,
+    initialTitle: String? = null,
+    initialArtist: String? = null,
     viewModel: SongDetailViewModel = hiltViewModel()
 ) {
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
 
     LaunchedEffect(mbid) {
         if (mbid != null) {
-            viewModel.fetchSongDetail(mbid)
+            viewModel.fetchSongDetail(mbid, initialTitle, initialArtist)
         }
     }
 
@@ -84,9 +87,32 @@ fun SongDetailScreen(
                     Column(modifier = Modifier
                         .fillMaxSize()
                         .padding(16.dp)) {
-                        Text(text = songDetail.titulo, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
-                        Text(text = songDetail.artista, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
-                        Spacer(modifier = Modifier.height(16.dp))
+                        
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (songDetail.coverUrl != null) {
+                                Card(
+                                    modifier = Modifier.size(100.dp),
+                                    shape = RoundedCornerShape(8.dp)
+                                ) {
+                                    GlideImage(
+                                        model = songDetail.coverUrl,
+                                        contentDescription = "Cover",
+                                        modifier = Modifier.fillMaxSize()
+                                    )
+                                }
+                                Spacer(modifier = Modifier.width(16.dp))
+                            }
+                            
+                            Column {
+                                Text(text = songDetail.titulo, style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
+                                Text(text = songDetail.artista, style = MaterialTheme.typography.titleMedium, color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.7f))
+                                if (songDetail.year != null) {
+                                    Text(text = songDetail.year, style = MaterialTheme.typography.bodySmall)
+                                }
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
 
                         Text(text = "Tabs de la comunidad (${songDetail.tabs.size})", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(vertical = 8.dp))
                         if (songDetail.tabs.isEmpty()) {

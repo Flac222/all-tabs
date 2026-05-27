@@ -7,10 +7,8 @@ import com.uade.alltabs.domain.repository.TabRepository
 import com.uade.alltabs.domain.usecase.FetchTabsUseCase
 import com.uade.alltabs.domain.usecase.GetUserUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
@@ -21,99 +19,116 @@ sealed class SearchUiState {
     data class Error(val message: String) : SearchUiState()
 }
 
+@OptIn(ExperimentalCoroutinesApi::class)
 @HiltViewModel
 class SearchViewModel @Inject constructor(
     private val fetchTabsUseCase: FetchTabsUseCase,
-    private val tabRepository: TabRepository,
+    tabRepository: TabRepository,
     private val getUserUseCase: GetUserUseCase
 ) : ViewModel() {
-
-    private val _uiState = MutableStateFlow<SearchUiState>(SearchUiState.Idle)
-    val uiState: StateFlow<SearchUiState> = _uiState.asStateFlow()
 
     private val _searchQuery = MutableStateFlow("")
     val searchQuery = _searchQuery.asStateFlow()
 
-    fun onSearchQueryChange(query: String) {
-        _searchQuery.value = query
-    }
+    private val _apiResults = MutableStateFlow<List<Tab>>(emptyList())
+    private val _isSearching = MutableStateFlow(false)
+    private val _error = MutableStateFlow<String?>(null)
 
-    fun search() {
-        val query = _searchQuery.value
-        if (query.isBlank()) return
-        
-        viewModelScope.launch {
-            _uiState.value = SearchUiState.Loading
-            try {
-                val apiResults = fetchTabsUseCase(query) // These are MusicBrainz results
-                
-                // 1. Get ALL global tabs from Firestore to check for matches
-                val allGlobalTabs = tabRepository.getAllTabs().first()
-
-                // 2. Prepare the list of results
+    val uiState: StateFlow<SearchUiState> = combine(
+        _apiResults,
+        tabRepository.getAllTabs(),
+        _isSearching,
+        _error,
+        _searchQuery
+    ) { apiResults, allGlobalTabs, isSearching, error, query ->
+        when {
+            error != null -> SearchUiState.Error(error)
+            isSearching -> SearchUiState.Loading
+            query.isEmpty() && apiResults.isEmpty() -> SearchUiState.Idle
+            else -> {
                 val results = mutableListOf<SongSearchResult>()
+                val resultsMap = mutableMapOf<String, SongSearchResult>()
 
-                // 3. Process API results and de-duplicate by MBID
-                val processedMbids = mutableSetOf<String>()
-                
+                // 1. Process API results and group by Title + Artist
                 apiResults.forEach { apiTab ->
+                    val key = "${apiTab.titulo.lowercase().trim()}|${apiTab.artista.lowercase().trim()}"
                     val mbid = apiTab.mbid ?: return@forEach
-                    if (processedMbids.contains(mbid)) return@forEach
                     
-                    processedMbids.add(mbid)
-                    
-                    // Find tabs in Firestore that match this MBID
-                    val matchingTabs = allGlobalTabs.filter { it.mbid == mbid }
-                    
-                    results.add(
-                        SongSearchResult(
+                    if (!resultsMap.containsKey(key)) {
+                        // Aggregate tabs from Firestore for this specific song name/artist
+                        val matchingTabs = allGlobalTabs.filter { 
+                            it.titulo.equals(apiTab.titulo, ignoreCase = true) && 
+                            it.artista.equals(apiTab.artista, ignoreCase = true) 
+                        }
+                        
+                        resultsMap[key] = SongSearchResult(
                             mbid = mbid,
                             titulo = apiTab.titulo,
                             artista = apiTab.artista,
                             tabCount = matchingTabs.size,
                             tabCreators = matchingTabs.map { it.userId to it.userName }
                         )
-                    )
+                    }
                 }
                 
-                // 4. Also add custom tabs from Firestore that match the search but aren't in MusicBrainz
+                results.addAll(resultsMap.values)
+
+                // 2. Add custom tabs from Firestore that don't match any API result
                 allGlobalTabs.forEach { customTab ->
-                    // If it has MBID and we already processed it, skip
-                    if (customTab.mbid != null && processedMbids.contains(customTab.mbid)) return@forEach
+                    val key = "${customTab.titulo.lowercase().trim()}|${customTab.artista.lowercase().trim()}"
                     
-                    // Simple text match if it matches query and wasn't found in API
-                    if (customTab.titulo.contains(query, ignoreCase = true) || 
-                        customTab.artista.contains(query, ignoreCase = true)) {
-                        
-                        // Check if we already have this exact song (by title/artist) to avoid duplicates
-                        val alreadyAdded = results.any { 
-                            it.titulo.equals(customTab.titulo, ignoreCase = true) && 
-                            it.artista.equals(customTab.artista, ignoreCase = true) 
-                        }
-                        
-                        if (!alreadyAdded) {
-                            results.add(
-                                SongSearchResult(
-                                    mbid = customTab.mbid ?: customTab.id, // Fallback to id if no mbid
-                                    titulo = customTab.titulo,
-                                    artista = customTab.artista,
-                                    tabCount = allGlobalTabs.count { 
-                                        it.titulo.equals(customTab.titulo, ignoreCase = true) && 
-                                        it.artista.equals(customTab.artista, ignoreCase = true) 
-                                    },
-                                    tabCreators = allGlobalTabs.filter { 
-                                        it.titulo.equals(customTab.titulo, ignoreCase = true) && 
-                                        it.artista.equals(customTab.artista, ignoreCase = true) 
-                                    }.map { it.userId to it.userName }
-                                )
+                    if (!resultsMap.containsKey(key)) {
+                        if (customTab.titulo.contains(query, ignoreCase = true) ||
+                            customTab.artista.contains(query, ignoreCase = true)) {
+                            
+                            val sameSongTabs = allGlobalTabs.filter {
+                                it.titulo.equals(customTab.titulo, ignoreCase = true) &&
+                                it.artista.equals(customTab.artista, ignoreCase = true)
+                            }
+                            
+                            val searchResult = SongSearchResult(
+                                mbid = customTab.mbid ?: customTab.id,
+                                titulo = customTab.titulo,
+                                artista = customTab.artista,
+                                tabCount = sameSongTabs.size,
+                                tabCreators = sameSongTabs.map { it.userId to it.userName }
                             )
+                            resultsMap[key] = searchResult
+                            results.add(searchResult)
                         }
                     }
                 }
+                SearchUiState.Success(results)
+            }
+        }
+    }.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5000),
+        initialValue = SearchUiState.Idle
+    )
 
-                _uiState.value = SearchUiState.Success(results)
+    fun onSearchQueryChange(query: String) {
+        _searchQuery.value = query
+        if (query.isEmpty()) {
+            _apiResults.value = emptyList()
+            _error.value = null
+        }
+    }
+
+    fun search() {
+        val query = _searchQuery.value
+        if (query.isBlank()) return
+
+        viewModelScope.launch {
+            _isSearching.value = true
+            _error.value = null
+            try {
+                val results = fetchTabsUseCase(query)
+                _apiResults.value = results
             } catch (e: Exception) {
-                _uiState.value = SearchUiState.Error(e.localizedMessage ?: "Unknown error occurred")
+                _error.value = e.localizedMessage ?: "Unknown error occurred"
+            } finally {
+                _isSearching.value = false
             }
         }
     }

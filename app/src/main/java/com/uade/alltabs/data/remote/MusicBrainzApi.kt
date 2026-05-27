@@ -17,7 +17,7 @@ interface MusicBrainzApi {
     ): MusicBrainzResponse
 
     @Headers("User-Agent: AllTabs/1.0.0 ( contact@alltabs.uade.edu.ar )")
-    @GET("recording/{mbid}?inc=artist-credits+releases+tags+genres+aliases")
+    @GET("recording/{mbid}?inc=artist-credits+releases+tags+genres+aliases+release-groups")
     suspend fun getRecordingDetail(
         @Path("mbid") mbid: String,
         @Query("fmt") format: String = "json"

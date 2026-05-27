@@ -24,4 +24,5 @@ interface TabRepository {
     suspend fun removeFavorite(userId: String, tabId: String)
 
     suspend fun fetchTabsFromApi(query: String): List<Tab>
+    suspend fun getCoverArtUrl(mbid: String): String?
 }

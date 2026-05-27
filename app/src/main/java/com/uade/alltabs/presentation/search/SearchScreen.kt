@@ -128,7 +128,13 @@ fun SearchScreen(
                                     SearchResultRow(
                                         song = songSearchResult,
                                         onClick = { 
-                                            navController.navigate(Screen.SongDetail.route + "/${songSearchResult.mbid}")
+                                            navController.navigate(
+                                                Screen.SongDetail.createRoute(
+                                                    mbid = songSearchResult.mbid,
+                                                    title = songSearchResult.titulo,
+                                                    artist = songSearchResult.artista
+                                                )
+                                            )
                                         }
                                     )
                                 }

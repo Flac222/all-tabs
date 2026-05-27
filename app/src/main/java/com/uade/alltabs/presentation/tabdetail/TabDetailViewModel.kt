@@ -3,10 +3,10 @@ package com.uade.alltabs.presentation.tabdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.uade.alltabs.domain.model.SongDetail
 import com.uade.alltabs.domain.model.Tab
 import com.uade.alltabs.domain.repository.TabRepository
 import com.uade.alltabs.domain.usecase.GetTabsByMbidUseCase
-import com.uade.alltabs.presentation.songdetail.SongDetail
 import com.uade.alltabs.presentation.songdetail.SongDetailUiState
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
