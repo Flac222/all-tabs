@@ -17,7 +17,16 @@ data class ReleaseDto(
     val id: String,
     val title: String,
     @SerializedName("release-events")
-    val releaseEvents: List<ReleaseEventDto>?
+    val releaseEvents: List<ReleaseEventDto>?,
+    @SerializedName("release-group")
+    val releaseGroup: ReleaseGroupDto?
+)
+
+data class ReleaseGroupDto(
+    val id: String,
+    val title: String,
+    @SerializedName("primary-type")
+    val primaryType: String?
 )
 
 data class ReleaseEventDto(

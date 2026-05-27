@@ -3,8 +3,8 @@ package com.uade.alltabs.presentation.songdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.uade.alltabs.domain.model.SongDetail
 import com.uade.alltabs.domain.repository.TabRepository
-import com.uade.alltabs.domain.usecase.GetTabUseCase
 import com.uade.alltabs.domain.usecase.GetTabsByMbidUseCase
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -24,38 +24,33 @@ class SongDetailViewModel @Inject constructor(
     private val _uiState = MutableStateFlow<SongDetailUiState>(SongDetailUiState.Idle)
     val uiState: StateFlow<SongDetailUiState> = _uiState.asStateFlow()
 
-    // mbid from navigation arguments
     private val mbid: String? = savedStateHandle["mbid"]
+    private val initialTitle: String? = savedStateHandle["title"]
+    private val initialArtist: String? = savedStateHandle["artist"]
 
     init {
-        mbid?.let { fetchSongDetail(it) }
+        mbid?.let { fetchSongDetail(it, initialTitle, initialArtist) }
     }
 
-    fun fetchSongDetail(mbid: String) {
+    fun fetchSongDetail(mbid: String, title: String? = null, artist: String? = null) {
         viewModelScope.launch {
             _uiState.value = SongDetailUiState.Loading
             try {
-                // Fetch song details from MusicBrainz (assuming a new API call is added to MusicBrainzApi)
-                // For now, let's mock some data or use the existing TabRepository to fetch a single tab as a placeholder
-                // You would typically have a separate API call for song details
+                val songTab = tabRepository.getSongDetailFromApi(mbid)
+                
+                // Get cover art URL using the MBID from the API (which might be a release-group ID now)
+                val coverUrl = songTab?.mbid?.let { tabRepository.getCoverArtUrl(it) }
 
-                val songDetailFromApi = tabRepository.getSongDetailFromApi(mbid)
-                val relatedTabs = getTabsByMbidUseCase(mbid)
-
-                relatedTabs.collectLatest { tabs ->
-                    val firstTab = tabs.firstOrNull()
+                getTabsByMbidUseCase(mbid, title ?: songTab?.titulo, artist ?: songTab?.artista).collectLatest { tabs ->
                     val songDetail = SongDetail(
                         mbid = mbid,
-                        titulo = songDetailFromApi?.titulo ?: firstTab?.titulo ?: "Unknown Title",
-                        artista = songDetailFromApi?.artista ?: firstTab?.artista ?: "Unknown Artist",
-                        year = songDetailFromApi?.fechaCreacion?.let { 
-                            try {
-                                java.text.SimpleDateFormat("yyyy").format(java.util.Date(it))
-                            } catch (e: Exception) {
-                                null
-                            }
+                        titulo = title ?: songTab?.titulo ?: tabs.firstOrNull()?.titulo ?: "Unknown Title",
+                        artista = artist ?: songTab?.artista ?: tabs.firstOrNull()?.artista ?: "Unknown Artist",
+                        coverUrl = coverUrl,
+                        year = songTab?.acordes?.takeIf { it.isNotEmpty() }?.let { dateStr ->
+                            // MusicBrainz dates can be YYYY-MM-DD, YYYY-MM, or YYYY
+                            dateStr.split("-").firstOrNull()
                         },
-                        genre = songDetailFromApi?.acordes, // Reusing 'acordes' for genre temporarily
                         tabs = tabs
                     )
                     _uiState.value = SongDetailUiState.Success(songDetail)

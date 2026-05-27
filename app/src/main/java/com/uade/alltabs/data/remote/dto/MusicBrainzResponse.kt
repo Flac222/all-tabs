@@ -13,7 +13,8 @@ data class RecordingDto(
     val id: String,
     val title: String,
     @SerializedName("artist-credit")
-    val artistCredit: List<ArtistCreditDto>?
+    val artistCredit: List<ArtistCreditDto>?,
+    val releases: List<ReleaseDto>?
 )
 
 data class ArtistCreditDto(

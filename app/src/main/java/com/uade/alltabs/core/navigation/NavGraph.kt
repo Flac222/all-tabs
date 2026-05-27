@@ -47,9 +47,18 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
             // Placeholder for Profile
         }
 
-        composable(route = Screen.SongDetail.route + "/{mbid}") { backStackEntry ->
+        composable(
+            route = Screen.SongDetail.routeWithArgs,
+            arguments = listOf(
+                androidx.navigation.navArgument("mbid") { type = androidx.navigation.NavType.StringType },
+                androidx.navigation.navArgument("title") { nullable = true },
+                androidx.navigation.navArgument("artist") { nullable = true }
+            )
+        ) { backStackEntry ->
             val mbid = backStackEntry.arguments?.getString("mbid")
-            SongDetailScreen(navController = navController, mbid = mbid)
+            val title = backStackEntry.arguments?.getString("title")
+            val artist = backStackEntry.arguments?.getString("artist")
+            SongDetailScreen(navController = navController, mbid = mbid, initialTitle = title, initialArtist = artist)
         }
 
         composable(
