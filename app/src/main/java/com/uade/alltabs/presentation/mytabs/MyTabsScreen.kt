@@ -237,23 +237,33 @@ fun TabItemRow(tab: Tab) {
                     .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f)),
                 contentAlignment = Alignment.Center
             ) {
-                // For now, show placeholder as Tab doesn't have imageUrl yet
                 Icon(
-                    Icons.Default.PlayArrow, 
-                    contentDescription = "Music",
-                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
+                    imageVector = if (tab.esFavorito) Icons.Default.Star else Icons.Default.PlayArrow, 
+                    contentDescription = if (tab.esFavorito) "Favorite" else "Music",
+                    tint = if (tab.esFavorito) Color(0xFFFFD700) else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.5f)
                 )
             }
 
             Spacer(modifier = Modifier.width(16.dp))
 
             Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = tab.titulo, 
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onSurface
-                )
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = tab.titulo, 
+                        style = MaterialTheme.typography.titleMedium,
+                        fontWeight = FontWeight.Bold,
+                        color = MaterialTheme.colorScheme.onSurface
+                    )
+                    if (tab.esFavorito) {
+                        Spacer(modifier = Modifier.width(4.dp))
+                        Icon(
+                            Icons.Default.Star,
+                            contentDescription = "Favorito",
+                            modifier = Modifier.size(16.dp),
+                            tint = Color(0xFFFFD700)
+                        )
+                    }
+                }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = tab.artista,

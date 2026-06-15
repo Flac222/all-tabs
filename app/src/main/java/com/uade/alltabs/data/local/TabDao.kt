@@ -20,6 +20,12 @@ interface TabDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertTabs(tabs: List<TabEntity>)
 
+    @Query("SELECT * FROM tabs WHERE userId = :userId")
+    fun getTabsByUserId(userId: String): Flow<List<TabEntity>>
+
+    @Query("SELECT * FROM tabs WHERE id IN (SELECT tabId FROM favorites WHERE userId = :userId)")
+    fun getFavoriteTabs(userId: String): Flow<List<TabEntity>>
+
     @Query("DELETE FROM tabs WHERE id = :id")
     suspend fun deleteTab(id: String)
 }

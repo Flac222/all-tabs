@@ -167,6 +167,23 @@ fun SongDetailScreen(
                                                         color = MaterialTheme.colorScheme.onSecondaryContainer
                                                     )
                                                 }
+                                                Spacer(modifier = Modifier.width(8.dp))
+                                            }
+                                            IconButton(
+                                                onClick = {
+                                                    viewModel.toggleFavorite(
+                                                        tabId = tab.id,
+                                                        title = tab.titulo,
+                                                        artist = tab.artista,
+                                                        currentStatus = tab.esFavorito
+                                                    )
+                                                }
+                                            ) {
+                                                Icon(
+                                                    imageVector = if (tab.esFavorito) Icons.Default.Favorite else Icons.Default.FavoriteBorder,
+                                                    contentDescription = if (tab.esFavorito) "Quitar de favoritos" else "Agregar a favoritos",
+                                                    tint = if (tab.esFavorito) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                                                )
                                             }
                                             Icon(
                                                 Icons.Default.KeyboardArrowRight,

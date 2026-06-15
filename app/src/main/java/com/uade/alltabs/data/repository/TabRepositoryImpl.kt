@@ -1,5 +1,10 @@
 package com.uade.alltabs.data.repository
 
+import com.google.firebase.auth.FirebaseAuth
+import com.uade.alltabs.data.local.FavoriteDao
+import com.uade.alltabs.data.local.FavoriteEntity
+import com.uade.alltabs.data.local.TabDao
+import com.uade.alltabs.data.local.TabEntity
 import com.uade.alltabs.data.remote.CoverArtArchiveApi
 import com.uade.alltabs.data.remote.FirestoreService
 import com.uade.alltabs.data.remote.MusicBrainzApi
@@ -9,9 +14,13 @@ import com.uade.alltabs.data.remote.dto.UserDto
 import com.uade.alltabs.domain.model.Tab
 import com.uade.alltabs.domain.model.User
 import com.uade.alltabs.domain.repository.TabRepository
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -19,7 +28,11 @@ import javax.inject.Singleton
 class TabRepositoryImpl @Inject constructor(
     private val firestoreService: FirestoreService,
     private val musicBrainzApi: MusicBrainzApi,
-    private val coverArtArchiveApi: CoverArtArchiveApi
+    private val coverArtArchiveApi: CoverArtArchiveApi,
+    private val tabDao: TabDao,
+    private val favoriteDao: FavoriteDao,
+    private val firebaseAuth: FirebaseAuth,
+    private val ioDispatcher: CoroutineDispatcher
 ) : TabRepository {
 
     override suspend fun saveUser(user: User) {
@@ -31,45 +44,129 @@ class TabRepositoryImpl @Inject constructor(
     }
 
     override suspend fun saveTab(tab: Tab) {
-        firestoreService.saveTab(tab.toDto())
+        tabDao.insertTab(tab.toEntity())
+        try {
+            firestoreService.saveTab(tab.toDto())
+        } catch (e: Exception) {
+            // Offline resilience
+        }
     }
 
     override suspend fun getTab(tabId: String): Tab? {
-        return firestoreService.getTab(tabId)?.toDomain()
+        val localTab = tabDao.getTabById(tabId)?.toDomain()
+        if (localTab != null) return localTab
+        
+        return try {
+            val remoteTab = firestoreService.getTab(tabId)?.toDomain()
+            if (remoteTab != null) {
+                tabDao.insertTab(remoteTab.toEntity())
+            }
+            remoteTab
+        } catch (e: Exception) {
+            null
+        }
     }
 
     override suspend fun deleteTab(tabId: String) {
-        firestoreService.deleteTab(tabId)
+        tabDao.deleteTab(tabId)
+        try {
+            firestoreService.deleteTab(tabId)
+        } catch (e: Exception) {
+            // Offline resilience
+        }
     }
 
     override suspend fun isTabFavorited(userId: String, tabId: String): Boolean {
-        return firestoreService.isTabFavorited(userId, tabId)
+        // First check Room, then fall back to Firestore if needed
+        val isLocalFavorite = tabDao.getTabById(tabId)?.esFavorito ?: false
+        if (isLocalFavorite) return true
+        return try {
+            firestoreService.isTabFavorited(userId, tabId)
+        } catch (e: Exception) {
+            false
+        }
     }
 
     override fun getTabsByUserId(userId: String): Flow<List<Tab>> {
-        return firestoreService.getTabsByUserIdFlow(userId).map { dtos ->
-            dtos.map { it.toDomain() }
+        // Start background synchronization
+        CoroutineScope(ioDispatcher).launch {
+            try {
+                firestoreService.getTabsByUserIdFlow(userId).collect { remoteTabs ->
+                    tabDao.insertTabs(remoteTabs.map { it.toDomain().toEntity() })
+                }
+            } catch (e: Exception) {
+                // Log or handle sync error silently for offline mode
+            }
+        }
+        val favoriteIdsFlow = favoriteDao.getFavoritesForUser(userId)
+            .map { list -> list.map { it.tabId }.toSet() }
+
+        return combine(
+            tabDao.getTabsByUserId(userId),
+            favoriteIdsFlow
+        ) { entities, favIds ->
+            entities.map { entity ->
+                entity.toDomain().copy(esFavorito = favIds.contains(entity.id))
+            }
         }
     }
 
-    override fun getFavoriteTabs(userId: String): Flow<List<Tab>> = flow {
-        val favoriteDtos = firestoreService.getFavoritesByUserId(userId)
-        val favoriteTabIds = favoriteDtos.map { it.tabId }
-        val favoriteTabs = mutableListOf<Tab>()
-        favoriteTabIds.forEach { tabId ->
-            firestoreService.getTab(tabId)?.let { favoriteTabs.add(it.toDomain()) }
+    override fun getFavoriteTabs(userId: String): Flow<List<Tab>> {
+        // Start background synchronization
+        CoroutineScope(ioDispatcher).launch {
+            try {
+                val remoteFavorites = firestoreService.getFavoritesByUserId(userId)
+                remoteFavorites.forEach { favDto ->
+                    favoriteDao.insertFavorite(
+                        FavoriteEntity(
+                            tabId = favDto.tabId,
+                            userId = favDto.userId,
+                            titulo = favDto.titulo,
+                            artista = favDto.artista,
+                            timestamp = System.currentTimeMillis()
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Log or handle sync error silently for offline mode
+            }
         }
-        emit(favoriteTabs)
+        return tabDao.getFavoriteTabs(userId).map { entities ->
+            entities.map { it.toDomain().copy(esFavorito = true) }
+        }
     }
 
     override fun getAllTabs(): Flow<List<Tab>> {
-        return firestoreService.getAllTabsFlow().map { dtos ->
-            dtos.map { it.toDomain() }
+        val currentUserId = firebaseAuth.currentUser?.uid ?: ""
+        val favoriteIdsFlow = favoriteDao.getFavoritesForUser(currentUserId)
+            .map { list -> list.map { it.tabId }.toSet() }
+
+        // Start background synchronization
+        CoroutineScope(ioDispatcher).launch {
+            try {
+                firestoreService.getAllTabsFlow().collect { remoteTabs ->
+                    tabDao.insertTabs(remoteTabs.map { it.toDomain().toEntity() })
+                }
+            } catch (e: Exception) {
+                // Log or handle sync error silently
+            }
+        }
+        return combine(
+            tabDao.getAllTabs(),
+            favoriteIdsFlow
+        ) { entities, favIds ->
+            entities.map { entity ->
+                entity.toDomain().copy(esFavorito = favIds.contains(entity.id))
+            }
         }
     }
 
     override suspend fun getTabCountsForSongs(mbids: List<String>): Map<String, List<Pair<String, String>>> {
-        return firestoreService.getTabCountsForMbids(mbids)
+        return try {
+            firestoreService.getTabCountsForMbids(mbids)
+        } catch (e: Exception) {
+            emptyMap()
+        }
     }
 
     override suspend fun getSongDetailFromApi(mbid: String): Tab? {
@@ -86,8 +183,6 @@ class TabRepositoryImpl @Inject constructor(
                 ?.filter { it.isNotEmpty() }
                 ?.minOrNull()
 
-            // We'll use the 'acordes' field of the Tab object temporarily to carry the year/date string
-            // from the API result to the ViewModel, as this is a "virtual" Tab for song details.
             Tab(
                 id = response.id,
                 userId = "", 
@@ -106,12 +201,40 @@ class TabRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addFavorite(userId: String, tabId: String, titulo: String, artista: String) {
-        val favoriteDto = FavoriteDto(userId = userId, tabId = tabId, titulo = titulo, artista = artista)
-        firestoreService.addFavorite(favoriteDto)
+        favoriteDao.insertFavorite(
+            FavoriteEntity(
+                tabId = tabId,
+                userId = userId,
+                titulo = titulo,
+                artista = artista,
+                timestamp = System.currentTimeMillis()
+            )
+        )
+        
+        tabDao.getTabById(tabId)?.let {
+            tabDao.insertTab(it.copy(esFavorito = true))
+        }
+        
+        try {
+            val favoriteDto = FavoriteDto(userId = userId, tabId = tabId, titulo = titulo, artista = artista)
+            firestoreService.addFavorite(favoriteDto)
+        } catch (e: Exception) {
+            // Offline resilience
+        }
     }
 
     override suspend fun removeFavorite(userId: String, tabId: String) {
-        firestoreService.removeFavorite(userId, tabId)
+        favoriteDao.deleteFavorite(tabId, userId)
+        
+        tabDao.getTabById(tabId)?.let {
+            tabDao.insertTab(it.copy(esFavorito = false))
+        }
+
+        try {
+            firestoreService.removeFavorite(userId, tabId)
+        } catch (e: Exception) {
+            // Offline resilience
+        }
     }
 
     override suspend fun getCoverArtUrl(mbid: String): String? {
@@ -154,7 +277,37 @@ class TabRepositoryImpl @Inject constructor(
         }
     }
 
-    // Mappers to convert between domain model and DTOs
+    // Mappers to convert between domain model and DTOs/Entities
+    private fun Tab.toEntity(): TabEntity {
+        return TabEntity(
+            id = id,
+            userId = userId,
+            userName = userName,
+            mbid = mbid,
+            titulo = titulo,
+            artista = artista,
+            acordes = acordes,
+            esIA = esIA,
+            esFavorito = esFavorito,
+            fechaCreacion = fechaCreacion
+        )
+    }
+
+    private fun TabEntity.toDomain(): Tab {
+        return Tab(
+            id = id,
+            userId = userId,
+            userName = userName,
+            mbid = mbid,
+            titulo = titulo,
+            artista = artista,
+            acordes = acordes,
+            esIA = esIA,
+            esFavorito = esFavorito,
+            fechaCreacion = fechaCreacion
+        )
+    }
+
     private fun User.toDto(): UserDto {
         return UserDto(uid = uid, nombre = nombre, email = email, fotoUrl = fotoUrl)
     }

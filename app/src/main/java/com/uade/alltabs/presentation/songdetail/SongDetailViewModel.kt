@@ -3,6 +3,7 @@ package com.uade.alltabs.presentation.songdetail
 import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.google.firebase.auth.FirebaseAuth
 import com.uade.alltabs.domain.model.SongDetail
 import com.uade.alltabs.domain.repository.TabRepository
 import com.uade.alltabs.domain.usecase.GetTabsByMbidUseCase
@@ -18,6 +19,7 @@ import javax.inject.Inject
 class SongDetailViewModel @Inject constructor(
     private val tabRepository: TabRepository,
     private val getTabsByMbidUseCase: GetTabsByMbidUseCase,
+    private val firebaseAuth: FirebaseAuth,
     savedStateHandle: SavedStateHandle
 ) : ViewModel() {
 
@@ -58,6 +60,18 @@ class SongDetailViewModel @Inject constructor(
             } catch (e: Exception) {
                 _uiState.value = SongDetailUiState.Error(e.localizedMessage ?: "Error loading song details")
             }
+        }
+    }
+
+    fun toggleFavorite(tabId: String, title: String, artist: String, currentStatus: Boolean) {
+        val userId = firebaseAuth.currentUser?.uid ?: return
+        viewModelScope.launch {
+            if (currentStatus) {
+                tabRepository.removeFavorite(userId, tabId)
+            } else {
+                tabRepository.addFavorite(userId, tabId, title, artist)
+            }
+            mbid?.let { fetchSongDetail(it, initialTitle, initialArtist) }
         }
     }
 }

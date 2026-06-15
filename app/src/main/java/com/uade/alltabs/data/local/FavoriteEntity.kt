@@ -9,5 +9,7 @@ data class FavoriteEntity(
     val id: Int = 0,
     val tabId: String,
     val userId: String,
+    val titulo: String,
+    val artista: String,
     val timestamp: Long
 )

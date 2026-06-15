@@ -40,12 +40,15 @@ class MyTabsViewModel @Inject constructor(
 
     val uiState: StateFlow<MyTabsUiState> = combine(
         _myTabs,
+        _favoriteTabs,
         _searchQuery
-    ) { myTabs, query ->
+    ) { myTabs, favoriteTabs, query ->
+        // Combine both lists and ensure no duplicate entries (in case user favorited their own tab)
+        val allTabs = (myTabs + favoriteTabs).distinctBy { it.id }
         val filteredTabs = if (query.isBlank()) {
-            myTabs
+            allTabs
         } else {
-            myTabs.filter { 
+            allTabs.filter { 
                 it.titulo.contains(query, ignoreCase = true) || 
                 it.artista.contains(query, ignoreCase = true) 
             }
@@ -72,6 +75,11 @@ class MyTabsViewModel @Inject constructor(
             viewModelScope.launch {
                 getTabsByUserIdUseCase(userId).collect { userTabs ->
                     _myTabs.value = userTabs
+                }
+            }
+            viewModelScope.launch {
+                getFavoriteTabsUseCase(userId).collect { favorites ->
+                    _favoriteTabs.value = favorites
                 }
             }
         }
