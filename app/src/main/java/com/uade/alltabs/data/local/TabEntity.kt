@@ -7,8 +7,13 @@ import androidx.room.PrimaryKey
 data class TabEntity(
     @PrimaryKey
     val id: String,
-    val title: String,
-    val artist: String,
-    val content: String,
-    val createdAt: Long
+    val userId: String,
+    val userName: String,
+    val mbid: String?,
+    val titulo: String,
+    val artista: String,
+    val acordes: String,
+    val esIA: Boolean,
+    val esFavorito: Boolean,
+    val fechaCreacion: Long
 )
