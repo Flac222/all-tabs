@@ -10,6 +10,7 @@ import com.uade.alltabs.presentation.mytabs.MyTabsScreen
 import com.uade.alltabs.presentation.search.SearchScreen
 import com.uade.alltabs.presentation.songdetail.SongDetailScreen
 import com.uade.alltabs.presentation.createTab.CreateTabScreen
+import com.uade.alltabs.presentation.ai.AiJamScreen
 
 @Composable
 fun NavGraph(navController: NavHostController, startDestination: String) {
@@ -40,7 +41,7 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
         }
 
         composable(route = Screen.AiJam.route) {
-            // Placeholder for AI Jam
+            AiJamScreen(navController = navController)
         }
 
         composable(route = Screen.Profile.route) {
