@@ -45,3 +45,6 @@ local.properties
 
 # Profiling
 *.hprof
+
+# Secret / environment properties (contains API keys)
+gradle.properties
