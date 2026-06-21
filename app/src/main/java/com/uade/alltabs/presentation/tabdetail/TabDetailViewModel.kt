@@ -7,7 +7,9 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.google.firebase.auth.FirebaseAuth
 import com.uade.alltabs.domain.model.Tab
+import com.uade.alltabs.domain.model.Place
 import com.uade.alltabs.domain.repository.TabRepository
+import com.uade.alltabs.core.utils.MusicXmlParser
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
@@ -23,17 +25,11 @@ sealed class TabDetailUiState {
     data class Success(
         val tab: Tab,
         val chords: List<String>,
-        val notes: List<GuitarNote>,
+        val places: List<Place>,
         val isFavorited: Boolean
     ) : TabDetailUiState()
     data class Error(val message: String) : TabDetailUiState()
 }
-
-data class GuitarNote(
-    val stringNum: Int, // 1 (High E) to 6 (Low E)
-    val fret: Int,      // Fret number, e.g. 3
-    val step: String    // Musical note name, e.g. "C"
-)
 
 @HiltViewModel
 class TabDetailViewModel @Inject constructor(
@@ -76,14 +72,14 @@ class TabDetailViewModel @Inject constructor(
             try {
                 val tab = tabRepository.getTab(id)
                 if (tab != null) {
-                    val chords = parseChords(tab.acordes)
-                    val notes = parseNotes(tab.acordes)
+                    val chords = MusicXmlParser.parseChords(tab.acordes)
+                    val places = MusicXmlParser.parsePlaces(tab.acordes)
                     val userId = firebaseAuth.currentUser?.uid ?: ""
                     val isFav = tabRepository.isTabFavorited(userId, tab.id)
                     _uiState.value = TabDetailUiState.Success(
                         tab = tab,
                         chords = chords,
-                        notes = notes,
+                        places = places,
                         isFavorited = isFav
                     )
                 } else {
@@ -122,7 +118,7 @@ class TabDetailViewModel @Inject constructor(
     private fun startPlayback() {
         playbackJob?.cancel()
         val state = _uiState.value as? TabDetailUiState.Success ?: return
-        val maxIndex = if (state.chords.isNotEmpty()) state.chords.size else state.notes.size
+        val maxIndex = if (state.chords.isNotEmpty()) state.chords.size else state.places.size
         if (maxIndex == 0) return
 
         playbackJob = viewModelScope.launch {
@@ -172,75 +168,6 @@ class TabDetailViewModel @Inject constructor(
                 // handle favorite toggling failure silently
             }
         }
-    }
-
-    private fun parseChords(xml: String): List<String> {
-        val parsedList = mutableListOf<String>()
-
-        // 1. Try comment-based harmony representation
-        val commentRegex = Regex("<!-- Harmony:\\s*(.*?)\\s*-->")
-        val commentMatches = commentRegex.findAll(xml).toList()
-        for (m in commentMatches) {
-            parsedList.add(m.groupValues[1])
-        }
-
-        // 2. Try harmony block representation
-        if (parsedList.isEmpty()) {
-            val harmonyRegex = Regex("<harmony>.*?<root-step>([A-G])</root-step>.*?(?:<root-alter>(-?\\d+)</root-alter>)?.*?(?:<kind>([a-zA-Z0-9]+)</kind>)?.*?</harmony>", RegexOption.DOT_MATCHES_ALL)
-            val harmonyMatches = harmonyRegex.findAll(xml).toList()
-            for (match in harmonyMatches) {
-                val step = match.groupValues[1]
-                val alter = match.groupValues[2]
-                val kind = match.groupValues[3]
-                val altStr = when(alter) {
-                    "1" -> "#"
-                    "-1" -> "b"
-                    else -> ""
-                }
-                val kindStr = when(kind) {
-                    "minor", "min" -> "m"
-                    "major", "maj" -> ""
-                    "dominant", "7" -> "7"
-                    else -> kind
-                }
-                parsedList.add("$step$altStr$kindStr")
-            }
-        }
-
-        return parsedList
-    }
-
-    private fun parseNotes(xml: String): List<GuitarNote> {
-        val notes = mutableListOf<GuitarNote>()
-        // Parse note elements containing technical attributes (string & fret)
-        val noteRegex = Regex("<note>.*?<step>([A-G])</step>.*?<string>([1-6])</string>.*?<fret>(\\d+)</fret>.*?</note>", RegexOption.DOT_MATCHES_ALL)
-        val matches = noteRegex.findAll(xml)
-        for (m in matches) {
-            val step = m.groupValues[1]
-            val stringNum = m.groupValues[2].toIntOrNull() ?: 6
-            val fret = m.groupValues[3].toIntOrNull() ?: 0
-            notes.add(GuitarNote(stringNum = stringNum, fret = fret, step = step))
-        }
-
-        // Fallback: If no technical notes exist (e.g. from custom simple chords), map chords to some mock strings/frets
-        if (notes.isEmpty()) {
-            val chords = parseChords(xml)
-            chords.forEachIndexed { i, chord ->
-                // Generate a mock fret position for visual representation
-                val fret = when {
-                    chord.startsWith("C") -> 3
-                    chord.startsWith("A") -> 0
-                    chord.startsWith("G") -> 3
-                    chord.startsWith("F") -> 1
-                    chord.startsWith("D") -> 2
-                    chord.startsWith("E") -> 2
-                    else -> 0
-                }
-                val stringNum = if (chord.startsWith("E") || chord.startsWith("G")) 6 else 5
-                notes.add(GuitarNote(stringNum = stringNum, fret = fret, step = chord.take(1)))
-            }
-        }
-        return notes
     }
 
     override fun onCleared() {

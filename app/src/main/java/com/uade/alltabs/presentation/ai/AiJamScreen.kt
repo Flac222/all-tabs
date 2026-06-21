@@ -47,13 +47,11 @@ fun AiJamScreen(
         "Jazz standard en Do",
         "12-bar blues en La",
         "Balada acústica melancólica"
-    )
-
-    LaunchedEffect(uiState) {
+    )    LaunchedEffect(uiState) {
         if (uiState is AiJamUiState.Saved) {
-            showSaveDialog = false
+            val tabId = (uiState as AiJamUiState.Saved).tabId
             viewModel.resetState()
-            navController.navigate(Screen.MyTabs.route) {
+            navController.navigate(Screen.TabDetail.createRoute(tabId)) {
                 popUpTo(Screen.AiJam.route) { inclusive = false }
             }
         }
@@ -218,65 +216,6 @@ fun AiJamScreen(
                             color = MaterialTheme.colorScheme.primary
                         )
                     }
-                    is AiJamUiState.Success -> {
-                        Column(
-                            modifier = Modifier.fillMaxSize()
-                        ) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically
-                            ) {
-                                Text(
-                                    text = "Progregación Sugerida",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold
-                                )
-                                Button(
-                                    onClick = {
-                                        tabTitle = state.generatedPrompt
-                                        tabArtist = "Compositor IA"
-                                        showSaveDialog = true
-                                    },
-                                    shape = RoundedCornerShape(8.dp),
-                                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.secondary)
-                                ) {
-                                    Icon(Icons.Default.Save, contentDescription = null, tint = Color.Black)
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text("Guardar", color = Color.Black, fontWeight = FontWeight.Bold)
-                                }
-                            }
-                            Spacer(modifier = Modifier.height(16.dp))
-
-                            LazyVerticalGrid(
-                                columns = GridCells.Adaptive(minSize = 70.dp),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                verticalArrangement = Arrangement.spacedBy(8.dp),
-                                modifier = Modifier.fillMaxWidth()
-                            ) {
-                                items(state.chords) { chord ->
-                                    Card(
-                                        shape = RoundedCornerShape(8.dp),
-                                        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface)
-                                    ) {
-                                        Box(
-                                            modifier = Modifier
-                                                .fillMaxWidth()
-                                                .padding(vertical = 16.dp),
-                                            contentAlignment = Alignment.Center
-                                        ) {
-                                            Text(
-                                                text = chord,
-                                                style = MaterialTheme.typography.titleMedium,
-                                                fontWeight = FontWeight.Bold,
-                                                color = MaterialTheme.colorScheme.onSurface
-                                            )
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                    }
                     is AiJamUiState.Error -> {
                         Text(
                             text = state.message,
@@ -298,51 +237,6 @@ fun AiJamScreen(
                     }
                 }
             }
-        }
-    }
-
-    // Save Dialog
-    if (showSaveDialog) {
-        val state = uiState as? AiJamUiState.Success
-        if (state != null) {
-            AlertDialog(
-                onDismissRequest = { showSaveDialog = false },
-                title = { Text("Guardar en Mis Tabs", fontWeight = FontWeight.Bold) },
-                text = {
-                    Column(
-                        verticalArrangement = Arrangement.spacedBy(12.dp)
-                    ) {
-                        OutlinedTextField(
-                            value = tabTitle,
-                            onValueChange = { tabTitle = it },
-                            label = { Text("Título de la tab") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                        OutlinedTextField(
-                            value = tabArtist,
-                            onValueChange = { tabArtist = it },
-                            label = { Text("Artista / Banda") },
-                            modifier = Modifier.fillMaxWidth(),
-                            singleLine = true
-                        )
-                    }
-                },
-                confirmButton = {
-                    TextButton(
-                        onClick = {
-                            viewModel.saveTab(tabTitle, tabArtist, state.musicXml)
-                        }
-                    ) {
-                        Text("Guardar", fontWeight = FontWeight.Bold)
-                    }
-                },
-                dismissButton = {
-                    TextButton(onClick = { showSaveDialog = false }) {
-                        Text("Cancelar")
-                    }
-                }
-            )
         }
     }
 }

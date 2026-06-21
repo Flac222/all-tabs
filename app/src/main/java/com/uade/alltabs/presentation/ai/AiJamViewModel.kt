@@ -20,7 +20,7 @@ sealed class AiJamUiState {
     object Loading : AiJamUiState()
     data class Success(val chords: List<String>, val musicXml: String, val generatedPrompt: String) : AiJamUiState()
     data class Error(val message: String) : AiJamUiState()
-    object Saved : AiJamUiState()
+    data class Saved(val tabId: String) : AiJamUiState()
 }
 
 @HiltViewModel
@@ -63,7 +63,22 @@ class AiJamViewModel @Inject constructor(
                 if (chordList.isEmpty()) {
                     _uiState.value = AiJamUiState.Error("No se pudieron generar acordes válidos")
                 } else {
-                    _uiState.value = AiJamUiState.Success(chordList, rawXml, prompt)
+                    val uid = firebaseAuth.currentUser?.uid ?: ""
+                    val tabId = UUID.randomUUID().toString()
+                    val tab = Tab(
+                        id = tabId,
+                        userId = uid,
+                        userName = _userName.value,
+                        mbid = null,
+                        titulo = prompt,
+                        artista = "Compositor IA",
+                        acordes = rawXml,
+                        esIA = true,
+                        esFavorito = false,
+                        fechaCreacion = System.currentTimeMillis()
+                    )
+                    saveTabUseCase(tab)
+                    _uiState.value = AiJamUiState.Saved(tabId)
                 }
             } catch (e: Exception) {
                 _uiState.value = AiJamUiState.Error(e.localizedMessage ?: "Error al generar acordes")
@@ -122,36 +137,6 @@ class AiJamViewModel @Inject constructor(
         }
 
         return parsedList
-    }
-
-    fun saveTab(titulo: String, artista: String, musicXml: String) {
-        if (titulo.isBlank() || artista.isBlank()) {
-            _uiState.value = AiJamUiState.Error("El título y artista son obligatorios para guardar")
-            return
-        }
-
-        val uid = firebaseAuth.currentUser?.uid ?: return
-
-        viewModelScope.launch {
-            try {
-                val tab = Tab(
-                    id = UUID.randomUUID().toString(),
-                    userId = uid,
-                    userName = _userName.value,
-                    mbid = null,
-                    titulo = titulo,
-                    artista = artista,
-                    acordes = musicXml,
-                    esIA = true,
-                    esFavorito = false,
-                    fechaCreacion = System.currentTimeMillis()
-                )
-                saveTabUseCase(tab)
-                _uiState.value = AiJamUiState.Saved
-            } catch (e: Exception) {
-                _uiState.value = AiJamUiState.Error(e.localizedMessage ?: "Error al guardar la tab")
-            }
-        }
     }
 
     fun resetState() {

@@ -23,6 +23,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavController
 import com.bumptech.glide.integration.compose.ExperimentalGlideComposeApi
 import com.bumptech.glide.integration.compose.GlideImage
+import com.uade.alltabs.domain.model.Place
 import com.uade.alltabs.core.navigation.Screen
 import com.uade.alltabs.presentation.components.BottomNavigationBar
 
@@ -187,8 +188,8 @@ fun TabDetailScreen(
                         ) {
                             Column(
                                 modifier = Modifier.padding(16.dp),
-                                horizontalArrangement = Arrangement.Center,
-                                verticalAlignment = Alignment.CenterVertically
+                                verticalArrangement = Arrangement.Center,
+                                horizontalAlignment = Alignment.CenterHorizontally
                             ) {
                                 Row(
                                     modifier = Modifier.fillMaxWidth(),
@@ -262,7 +263,7 @@ fun TabDetailScreen(
                             style = MaterialTheme.typography.titleMedium,
                             fontWeight = FontWeight.Bold
                         )
-                        TablatureGrid(notes = state.notes, currentPlayIndex = currentPlayIndex)
+                        TablatureGrid(places = state.places, currentPlayIndex = currentPlayIndex)
                     }
                 }
                 is TabDetailUiState.Error -> {
@@ -281,13 +282,13 @@ fun TabDetailScreen(
 }
 
 @Composable
-fun TablatureGrid(notes: List<GuitarNote>, currentPlayIndex: Int) {
+fun ColumnScope.TablatureGrid(places: List<Place>, currentPlayIndex: Int) {
     val stringLabels = listOf("e", "B", "G", "D", "A", "E") // Standard guitar strings 1 to 6
     val scrollState = rememberScrollState()
 
     // Autoscroll logic to follow playback
     LaunchedEffect(currentPlayIndex) {
-        if (currentPlayIndex >= 0 && notes.isNotEmpty()) {
+        if (currentPlayIndex >= 0 && places.isNotEmpty()) {
             val approxPosition = currentPlayIndex * 48 // 48dp approximate width per note column
             scrollState.animateScrollTo(approxPosition)
         }
@@ -336,7 +337,7 @@ fun TablatureGrid(notes: List<GuitarNote>, currentPlayIndex: Int) {
                             // The string line drawn under the frets
                             Canvas(
                                 modifier = Modifier
-                                    .width((notes.size * 48 + 32).dp)
+                                    .width((places.size * 48 + 32).dp)
                                     .height(1.dp)
                             ) {
                                 drawLine(
@@ -349,14 +350,15 @@ fun TablatureGrid(notes: List<GuitarNote>, currentPlayIndex: Int) {
 
                             // Render fret positions horizontally
                             Row(horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                                notes.forEachIndexed { index, note ->
+                                places.forEachIndexed { index, place ->
                                     val isPlayingThis = index == currentPlayIndex
                                     
                                     Box(
                                         modifier = Modifier.width(24.dp),
                                         contentAlignment = Alignment.Center
                                     ) {
-                                        if (note.stringNum == s) {
+                                        val fretVal = if (place.isBarLine) "|" else place.slots[s - 1]
+                                        if (fretVal != null) {
                                             Box(
                                                 modifier = Modifier
                                                     .size(22.dp)
@@ -367,8 +369,8 @@ fun TablatureGrid(notes: List<GuitarNote>, currentPlayIndex: Int) {
                                                 contentAlignment = Alignment.Center
                                             ) {
                                                 Text(
-                                                    text = note.fret.toString(),
-                                                    fontSize = 11.sp,
+                                                    text = fretVal,
+                                                    fontSize = 10.sp,
                                                     fontWeight = FontWeight.Bold,
                                                     color = if (isPlayingThis) Color.White else MaterialTheme.colorScheme.onSurface
                                                 )
