@@ -17,7 +17,7 @@ import javax.inject.Inject
 sealed class CreateTabUiState {
     object Idle : CreateTabUiState()
     object Loading : CreateTabUiState()
-    object Success : CreateTabUiState()
+    data class Success(val tabId: String) : CreateTabUiState()
     data class Error(val message: String) : CreateTabUiState()
 }
 
@@ -57,8 +57,9 @@ class CreateTabViewModel @Inject constructor(
         viewModelScope.launch {
             _uiState.value = CreateTabUiState.Loading
             try {
+                val tabId = UUID.randomUUID().toString()
                 val newTab = Tab(
-                    id = UUID.randomUUID().toString(),
+                    id = tabId,
                     userId = uid,
                     userName = _userName.value,
                     mbid = mbid,
@@ -70,7 +71,7 @@ class CreateTabViewModel @Inject constructor(
                     fechaCreacion = System.currentTimeMillis()
                 )
                 saveTabUseCase(newTab)
-                _uiState.value = CreateTabUiState.Success
+                _uiState.value = CreateTabUiState.Success(tabId)
             } catch (e: Exception) {
                 _uiState.value = CreateTabUiState.Error(e.localizedMessage ?: "Error al guardar la tab")
             }

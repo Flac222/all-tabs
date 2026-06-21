@@ -22,6 +22,12 @@ import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import javax.inject.Inject
+import android.content.Context
+import android.net.ConnectivityManager
+import android.net.Network
+import android.net.NetworkCapabilities
+import android.net.NetworkRequest
+import dagger.hilt.android.qualifiers.ApplicationContext
 import javax.inject.Singleton
 
 @Singleton
@@ -32,8 +38,58 @@ class TabRepositoryImpl @Inject constructor(
     private val tabDao: TabDao,
     private val favoriteDao: FavoriteDao,
     private val firebaseAuth: FirebaseAuth,
-    private val ioDispatcher: CoroutineDispatcher
+    private val ioDispatcher: CoroutineDispatcher,
+    @ApplicationContext private val context: Context
 ) : TabRepository {
+
+    init {
+        registerNetworkCallback()
+    }
+
+    private fun registerNetworkCallback() {
+        val connectivityManager = context.getSystemService(Context.CONNECTIVITY_SERVICE) as? ConnectivityManager ?: return
+        val request = NetworkRequest.Builder()
+            .addCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET)
+            .build()
+        try {
+            connectivityManager.registerNetworkCallback(request, object : ConnectivityManager.NetworkCallback() {
+                override fun onAvailable(network: Network) {
+                    super.onAvailable(network)
+                    syncPendingOfflineData()
+                }
+            })
+        } catch (e: Exception) {
+            // Safe fallback for custom testing environments
+        }
+    }
+
+    private fun syncPendingOfflineData() {
+        val currentUserId = firebaseAuth.currentUser?.uid ?: return
+        CoroutineScope(ioDispatcher).launch {
+            try {
+                // 1. Sync custom local tabs
+                val localTabs = tabDao.getTabsByUserIdList(currentUserId)
+                localTabs.forEach { tabEntity ->
+                    firestoreService.saveTab(tabEntity.toDomain().toDto())
+                }
+
+                // 2. Sync favorites
+                val localFavorites = favoriteDao.getFavoritesForUserList(currentUserId)
+                localFavorites.forEach { favEntity ->
+                    firestoreService.addFavorite(
+                        FavoriteDto(
+                            userId = favEntity.userId,
+                            tabId = favEntity.tabId,
+                            titulo = favEntity.titulo,
+                            artista = favEntity.artista
+                        )
+                    )
+                }
+            } catch (e: Exception) {
+                // Handle sync failures silently
+            }
+        }
+    }
 
     override suspend fun saveUser(user: User) {
         firestoreService.saveUser(user.toDto())

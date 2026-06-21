@@ -35,8 +35,9 @@ fun CreateTabScreen(
     val isArtistLocked = initialArtist != null
 
     LaunchedEffect(uiState) {
-        if (uiState is CreateTabUiState.Success) {
-            navController.navigate(Screen.MyTabs.route) {
+        val state = uiState
+        if (state is CreateTabUiState.Success) {
+            navController.navigate(Screen.TabEditor.createRoute(state.tabId)) {
                 popUpTo(Screen.CreateTab.route) { inclusive = true }
             }
         }

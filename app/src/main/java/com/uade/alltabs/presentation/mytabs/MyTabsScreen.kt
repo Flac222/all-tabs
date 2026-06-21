@@ -1,6 +1,7 @@
 package com.uade.alltabs.presentation.mytabs
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -196,7 +197,12 @@ fun MyTabsScreen(
                                 contentPadding = PaddingValues(horizontal = 16.dp, vertical = 8.dp)
                             ) {
                                 items(state.tabs) { tab ->
-                                    TabItemRow(tab = tab)
+                                    TabItemRow(
+                                        tab = tab,
+                                        onClick = {
+                                            navController.navigate(Screen.TabDetail.createRoute(tab.id))
+                                        }
+                                    )
                                 }
                             }
                         }
@@ -216,11 +222,12 @@ fun MyTabsScreen(
 
 @OptIn(ExperimentalGlideComposeApi::class)
 @Composable
-fun TabItemRow(tab: Tab) {
+fun TabItemRow(tab: Tab, onClick: (() -> Unit)? = null) {
     Card(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 8.dp),
+            .padding(vertical = 8.dp)
+            .clickable(enabled = onClick != null) { onClick?.invoke() },
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         shape = RoundedCornerShape(12.dp)
     ) {

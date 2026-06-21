@@ -219,7 +219,12 @@ fun HomeScreen(
                         }
                     } else {
                         items(state.recentTabs) { tab ->
-                            TabItemRow(tab = tab)
+                            TabItemRow(
+                                tab = tab,
+                                onClick = {
+                                    navController.navigate(Screen.TabDetail.createRoute(tab.id))
+                                }
+                            )
                         }
                     }
                 }

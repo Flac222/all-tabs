@@ -23,6 +23,9 @@ interface TabDao {
     @Query("SELECT * FROM tabs WHERE userId = :userId")
     fun getTabsByUserId(userId: String): Flow<List<TabEntity>>
 
+    @Query("SELECT * FROM tabs WHERE userId = :userId")
+    suspend fun getTabsByUserIdList(userId: String): List<TabEntity>
+
     @Query("SELECT * FROM tabs WHERE id IN (SELECT tabId FROM favorites WHERE userId = :userId)")
     fun getFavoriteTabs(userId: String): Flow<List<TabEntity>>
 

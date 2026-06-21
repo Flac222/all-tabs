@@ -29,6 +29,13 @@ sealed class Screen(val route: String) {
                 ).joinToString("&")
         }
     }
+    object TabDetail : Screen("tab_detail_screen/{tabId}") {
+        fun createRoute(tabId: String) = "tab_detail_screen/$tabId"
+    }
+    object TabEditor : Screen("tab_editor_screen/{tabId}") {
+        fun createRoute(tabId: String) = "tab_editor_screen/$tabId"
+    }
+
 
     fun withArgs(vararg args: String): String {
         return buildString {

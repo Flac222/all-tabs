@@ -128,7 +128,8 @@ fun SongDetailScreen(
                                             .fillMaxWidth()
                                             .padding(vertical = 4.dp),
                                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f)),
-                                        shape = RoundedCornerShape(8.dp)
+                                        shape = RoundedCornerShape(8.dp),
+                                        onClick = { navController.navigate(Screen.TabDetail.createRoute(tab.id)) }
                                     ) {
                                         Row(
                                             modifier = Modifier

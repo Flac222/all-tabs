@@ -75,5 +75,25 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
             val mbid = backStackEntry.arguments?.getString("mbid")
             CreateTabScreen(navController = navController, initialTitle = title, initialArtist = artist, mbid = mbid)
         }
+
+        composable(
+            route = Screen.TabDetail.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("tabId") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tabId = backStackEntry.arguments?.getString("tabId")
+            com.uade.alltabs.presentation.tabdetail.TabDetailScreen(navController = navController, tabId = tabId)
+        }
+
+        composable(
+            route = Screen.TabEditor.route,
+            arguments = listOf(
+                androidx.navigation.navArgument("tabId") { type = androidx.navigation.NavType.StringType }
+            )
+        ) { backStackEntry ->
+            val tabId = backStackEntry.arguments?.getString("tabId")
+            com.uade.alltabs.presentation.editor.TabEditorScreen(navController = navController, tabId = tabId)
+        }
     }
 }
