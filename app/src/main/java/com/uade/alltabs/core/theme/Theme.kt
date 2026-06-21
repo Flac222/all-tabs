@@ -21,13 +21,27 @@ private val DarkColorScheme = darkColorScheme(
     surfaceVariant = SurfaceDark
 )
 
+private val LightColorScheme = lightColorScheme(
+    primary = PrimaryColor,
+    secondary = SecondaryColor,
+    tertiary = PrimaryVariantColor,
+    background = Color.White,
+    surface = Color.White,
+    onPrimary = Color.White,
+    onSecondary = Color.Black,
+    onBackground = Color.Black,
+    onSurface = Color.Black,
+    surfaceVariant = Color(0xFFF0F0F0)
+)
+
 @Composable
 fun AllTabsTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
+    val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
     MaterialTheme(
-        colorScheme = DarkColorScheme, // Force dark mode as per design
+        colorScheme = colorScheme,
         typography = Typography,
         content = content
     )

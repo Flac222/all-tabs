@@ -57,7 +57,7 @@ fun LoginScreen(
     Box(
         modifier = Modifier
             .fillMaxSize()
-            .background(Color(0xFF121212)),
+            .background(MaterialTheme.colorScheme.background),
         contentAlignment = Alignment.Center
     ) {
         Column(
@@ -98,7 +98,7 @@ fun LoginScreen(
                 text = "Welcome Back",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFFF5F5F5)
+                color = MaterialTheme.colorScheme.onBackground
             )
             
             Spacer(modifier = Modifier.height(48.dp))
