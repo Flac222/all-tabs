@@ -9,9 +9,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -56,8 +55,12 @@ class MyTabsViewModelTest {
         return MyTabsViewModel(firebaseAuth, getTabsByUserIdUseCase, getFavoriteTabsUseCase)
     }
 
-    private fun subscribeUiState(job: kotlinx.coroutines.CoroutineScope): Job =
-        job.launch { viewModel.uiState.collect { } }
+    private suspend fun awaitSuccess(tabCount: Int? = null): MyTabsUiState.Success {
+        return viewModel.uiState.first {
+            it is MyTabsUiState.Success &&
+                (tabCount == null || (it as MyTabsUiState.Success).tabs.size == tabCount)
+        } as MyTabsUiState.Success
+    }
 
     @Test
     fun `loads and combines user tabs and favorite tabs`() = runTest {
@@ -67,30 +70,21 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(favTabs)
 
         viewModel = buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
+        val state = awaitSuccess(tabCount = 3)
 
-        val state = viewModel.uiState.value as? MyTabsUiState.Success
-        assertNotNull(state)
-        // 3 distinct tabs (1, 2, 3)
-        assertEquals(3, state!!.tabs.size)
+        assertEquals(3, state.tabs.size)
     }
 
     @Test
     fun `deduplicates tabs that appear in both user and favorites`() = runTest {
         val tab1 = makeTab("1")
-        // Same tab is in both user tabs and favorites
         every { getTabsByUserIdUseCase("uid-123") } returns flowOf(listOf(tab1))
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(listOf(tab1))
 
         viewModel = buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
+        val state = awaitSuccess(tabCount = 1)
 
-        val state = viewModel.uiState.value as? MyTabsUiState.Success
-        assertNotNull(state)
-        // Only 1 unique tab after deduplication
-        assertEquals(1, state!!.tabs.size)
+        assertEquals(1, state.tabs.size)
     }
 
     @Test
@@ -104,22 +98,18 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
+        awaitSuccess(tabCount = 2)
 
         viewModel.onSearchQueryChange("Stairway")
-        advanceUntilIdle()
+        val state = awaitSuccess(tabCount = 1)
 
-        val state = viewModel.uiState.value as? MyTabsUiState.Success
-        assertNotNull(state)
-        assertEquals(1, state!!.tabs.size)
         assertEquals("Stairway to Heaven", state.tabs[0].titulo)
     }
 
     @Test
     fun `search query filters by artist`() = runTest {
         val tabs = listOf(
-            makeTab("1"),  // artista = "Artist 1"
+            makeTab("1"),
             Tab(
                 id = "2", userId = "uid-123", userName = "User", mbid = null,
                 titulo = "Any Song", artista = "Led Zeppelin",
@@ -130,15 +120,12 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
+        awaitSuccess(tabCount = 2)
 
         viewModel.onSearchQueryChange("Led Zeppelin")
-        advanceUntilIdle()
+        val state = awaitSuccess(tabCount = 1)
 
-        val state = viewModel.uiState.value as? MyTabsUiState.Success
-        assertNotNull(state)
-        assertEquals(1, state!!.tabs.size)
+        assertEquals(1, state.tabs.size)
     }
 
     @Test
@@ -148,16 +135,14 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
+        awaitSuccess(tabCount = 3)
 
         viewModel.onSearchQueryChange("filter something")
-        advanceUntilIdle()
-        viewModel.onSearchQueryChange("")
-        advanceUntilIdle()
+        awaitSuccess(tabCount = 0)
 
-        val state = viewModel.uiState.value as? MyTabsUiState.Success
-        assertNotNull(state)
-        assertEquals(3, state!!.tabs.size)
+        viewModel.onSearchQueryChange("")
+        val state = awaitSuccess(tabCount = 3)
+
+        assertEquals(3, state.tabs.size)
     }
 }

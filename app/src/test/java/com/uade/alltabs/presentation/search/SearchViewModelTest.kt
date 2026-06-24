@@ -9,9 +9,8 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flowOf
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -42,7 +41,6 @@ class SearchViewModelTest {
         tabRepository = mockk()
         getUserUseCase = mockk()
 
-        // Default: getAllTabs returns empty flow
         every { tabRepository.getAllTabs() } returns flowOf(emptyList())
     }
 
@@ -55,29 +53,30 @@ class SearchViewModelTest {
         viewModel = SearchViewModel(fetchTabsUseCase, tabRepository, getUserUseCase)
     }
 
-    private fun subscribeUiState(job: kotlinx.coroutines.CoroutineScope): Job =
-        job.launch { viewModel.uiState.collect { } }
+    private suspend fun awaitIdle(): SearchUiState.Idle =
+        viewModel.uiState.first { it is SearchUiState.Idle } as SearchUiState.Idle
+
+    private suspend fun awaitSuccess(): SearchUiState.Success =
+        viewModel.uiState.first { it is SearchUiState.Success } as SearchUiState.Success
+
+    private suspend fun awaitError(): SearchUiState.Error =
+        viewModel.uiState.first { it is SearchUiState.Error } as SearchUiState.Error
 
     @Test
     fun `initial state is Idle`() = runTest {
         buildViewModel()
-        subscribeUiState(this)
-        advanceUntilIdle()
-        assertTrue(viewModel.uiState.value is SearchUiState.Idle)
+        awaitIdle()
     }
 
     @Test
     fun `search with blank query does nothing`() = runTest {
         buildViewModel()
-        subscribeUiState(this)
+        awaitIdle()
+
         viewModel.onSearchQueryChange("")
         viewModel.search()
-        advanceUntilIdle()
-        // State should remain Idle since query is blank
-        assertTrue(
-            viewModel.uiState.value is SearchUiState.Idle ||
-            viewModel.uiState.value is SearchUiState.Success
-        )
+
+        awaitIdle()
     }
 
     @Test
@@ -85,60 +84,53 @@ class SearchViewModelTest {
         val tabs = listOf(makeTab("1", "Bohemian Rhapsody", "Queen", "mbid-1"))
         coEvery { fetchTabsUseCase(any()) } returns tabs
         buildViewModel()
-        subscribeUiState(this)
+        awaitIdle()
 
         viewModel.onSearchQueryChange("Bohemian")
         viewModel.search()
-        advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is SearchUiState.Success)
-        val results = (viewModel.uiState.value as SearchUiState.Success).results
-        assertTrue(results.isNotEmpty())
-        assertEquals("Bohemian Rhapsody", results[0].titulo)
+        val state = awaitSuccess()
+        assertTrue(state.results.isNotEmpty())
+        assertEquals("Bohemian Rhapsody", state.results[0].titulo)
     }
 
     @Test
     fun `search error emits Error state`() = runTest {
         coEvery { fetchTabsUseCase(any()) } throws RuntimeException("Network error")
         buildViewModel()
-        subscribeUiState(this)
+        awaitIdle()
 
         viewModel.onSearchQueryChange("test")
         viewModel.search()
-        advanceUntilIdle()
 
-        assertTrue(viewModel.uiState.value is SearchUiState.Error)
-        assertTrue((viewModel.uiState.value as SearchUiState.Error).message.contains("Network error"))
+        val state = awaitError()
+        assertTrue(state.message.contains("Network error"))
     }
 
     @Test
     fun `clearing query resets to Idle`() = runTest {
         coEvery { fetchTabsUseCase(any()) } returns emptyList()
         buildViewModel()
-        subscribeUiState(this)
+        awaitIdle()
 
         viewModel.onSearchQueryChange("test")
         viewModel.search()
-        advanceUntilIdle()
+        awaitSuccess()
 
         viewModel.onSearchQueryChange("")
-        advanceUntilIdle()
-
-        assertTrue(viewModel.uiState.value is SearchUiState.Idle)
+        awaitIdle()
     }
 
     @Test
     fun `search with empty results emits Success with empty list`() = runTest {
         coEvery { fetchTabsUseCase(any()) } returns emptyList()
         buildViewModel()
-        subscribeUiState(this)
+        awaitIdle()
 
         viewModel.onSearchQueryChange("xyz")
         viewModel.search()
-        advanceUntilIdle()
 
-        // With empty API and empty repo, and query still set → may be Success or Idle
-        val state = viewModel.uiState.value
-        assertTrue(state is SearchUiState.Success || state is SearchUiState.Idle)
+        val state = awaitSuccess()
+        assertTrue(state.results.isEmpty())
     }
 }
