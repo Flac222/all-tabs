@@ -6,8 +6,10 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -40,19 +42,19 @@ class HomeViewModelTest {
         Dispatchers.resetMain()
     }
 
+    /** WhileSubscribed stateIn only collects when observed — mirror Compose collectAsState. */
+    private fun subscribeUiState(job: kotlinx.coroutines.CoroutineScope): Job =
+        job.launch { viewModel.uiState.collect { } }
+
     @Test
-    fun `initial state is Loading`() {
-        // Arrange: use a flow that never emits so we can observe the initial state
+    fun `initial state is Loading`() = runTest {
         every { getRecentTabsUseCase() } returns MutableStateFlow(emptyList())
 
         viewModel = HomeViewModel(getRecentTabsUseCase)
+        subscribeUiState(this)
+        advanceUntilIdle()
 
-        // The initial value before any emission is Loading
-        // Once viewModel is created with an empty list, it transitions to Success
-        assertTrue(
-            viewModel.uiState.value is HomeUiState.Success ||
-            viewModel.uiState.value is HomeUiState.Loading
-        )
+        assertTrue(viewModel.uiState.value is HomeUiState.Success)
     }
 
     @Test
@@ -62,6 +64,7 @@ class HomeViewModelTest {
         every { getRecentTabsUseCase() } returns flowOf(tabs)
 
         viewModel = HomeViewModel(getRecentTabsUseCase)
+        subscribeUiState(this)
         advanceUntilIdle()
 
         // Assert
@@ -79,6 +82,7 @@ class HomeViewModelTest {
         every { getRecentTabsUseCase() } returns flowOf(tabs)
 
         viewModel = HomeViewModel(getRecentTabsUseCase)
+        subscribeUiState(this)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as HomeUiState.Success
@@ -91,6 +95,7 @@ class HomeViewModelTest {
         every { getRecentTabsUseCase() } returns flowOf(emptyList())
 
         viewModel = HomeViewModel(getRecentTabsUseCase)
+        subscribeUiState(this)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value
@@ -106,6 +111,7 @@ class HomeViewModelTest {
         }
 
         viewModel = HomeViewModel(getRecentTabsUseCase)
+        subscribeUiState(this)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value

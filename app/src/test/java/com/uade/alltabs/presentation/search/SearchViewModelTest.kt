@@ -9,7 +9,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -53,15 +55,21 @@ class SearchViewModelTest {
         viewModel = SearchViewModel(fetchTabsUseCase, tabRepository, getUserUseCase)
     }
 
+    private fun subscribeUiState(job: kotlinx.coroutines.CoroutineScope): Job =
+        job.launch { viewModel.uiState.collect { } }
+
     @Test
-    fun `initial state is Idle`() {
+    fun `initial state is Idle`() = runTest {
         buildViewModel()
+        subscribeUiState(this)
+        advanceUntilIdle()
         assertTrue(viewModel.uiState.value is SearchUiState.Idle)
     }
 
     @Test
     fun `search with blank query does nothing`() = runTest {
         buildViewModel()
+        subscribeUiState(this)
         viewModel.onSearchQueryChange("")
         viewModel.search()
         advanceUntilIdle()
@@ -77,6 +85,7 @@ class SearchViewModelTest {
         val tabs = listOf(makeTab("1", "Bohemian Rhapsody", "Queen", "mbid-1"))
         coEvery { fetchTabsUseCase(any()) } returns tabs
         buildViewModel()
+        subscribeUiState(this)
 
         viewModel.onSearchQueryChange("Bohemian")
         viewModel.search()
@@ -92,6 +101,7 @@ class SearchViewModelTest {
     fun `search error emits Error state`() = runTest {
         coEvery { fetchTabsUseCase(any()) } throws RuntimeException("Network error")
         buildViewModel()
+        subscribeUiState(this)
 
         viewModel.onSearchQueryChange("test")
         viewModel.search()
@@ -105,6 +115,7 @@ class SearchViewModelTest {
     fun `clearing query resets to Idle`() = runTest {
         coEvery { fetchTabsUseCase(any()) } returns emptyList()
         buildViewModel()
+        subscribeUiState(this)
 
         viewModel.onSearchQueryChange("test")
         viewModel.search()
@@ -120,6 +131,7 @@ class SearchViewModelTest {
     fun `search with empty results emits Success with empty list`() = runTest {
         coEvery { fetchTabsUseCase(any()) } returns emptyList()
         buildViewModel()
+        subscribeUiState(this)
 
         viewModel.onSearchQueryChange("xyz")
         viewModel.search()

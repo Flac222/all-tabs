@@ -9,7 +9,9 @@ import io.mockk.every
 import io.mockk.mockk
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.*
 import org.junit.After
 import org.junit.Assert.*
@@ -54,6 +56,9 @@ class MyTabsViewModelTest {
         return MyTabsViewModel(firebaseAuth, getTabsByUserIdUseCase, getFavoriteTabsUseCase)
     }
 
+    private fun subscribeUiState(job: kotlinx.coroutines.CoroutineScope): Job =
+        job.launch { viewModel.uiState.collect { } }
+
     @Test
     fun `loads and combines user tabs and favorite tabs`() = runTest {
         val myTabs = listOf(makeTab("1"), makeTab("2"))
@@ -62,6 +67,7 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(favTabs)
 
         viewModel = buildViewModel()
+        subscribeUiState(this)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as? MyTabsUiState.Success
@@ -78,6 +84,7 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(listOf(tab1))
 
         viewModel = buildViewModel()
+        subscribeUiState(this)
         advanceUntilIdle()
 
         val state = viewModel.uiState.value as? MyTabsUiState.Success
@@ -97,6 +104,7 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
+        subscribeUiState(this)
         advanceUntilIdle()
 
         viewModel.onSearchQueryChange("Stairway")
@@ -122,6 +130,7 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
+        subscribeUiState(this)
         advanceUntilIdle()
 
         viewModel.onSearchQueryChange("Led Zeppelin")
@@ -139,6 +148,7 @@ class MyTabsViewModelTest {
         every { getFavoriteTabsUseCase("uid-123") } returns flowOf(emptyList())
 
         viewModel = buildViewModel()
+        subscribeUiState(this)
         advanceUntilIdle()
 
         viewModel.onSearchQueryChange("filter something")
