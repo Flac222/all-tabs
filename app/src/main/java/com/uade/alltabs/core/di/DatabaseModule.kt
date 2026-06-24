@@ -22,7 +22,8 @@ object DatabaseModule {
             app,
             AllTabsDatabase::class.java,
             AllTabsDatabase.DATABASE_NAME
-        ).build()
+        ).fallbackToDestructiveMigration()
+            .build()
     }
 
     @Provides

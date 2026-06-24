@@ -17,6 +17,9 @@ interface FavoriteDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertFavorite(favorite: FavoriteEntity)
 
+    @Query("SELECT EXISTS(SELECT 1 FROM favorites WHERE userId = :userId AND tabId = :tabId)")
+    suspend fun isFavorite(userId: String, tabId: String): Boolean
+
     @Query("DELETE FROM favorites WHERE tabId = :tabId AND userId = :userId")
     suspend fun deleteFavorite(tabId: String, userId: String)
 }

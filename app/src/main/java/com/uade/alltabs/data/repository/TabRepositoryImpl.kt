@@ -133,9 +133,7 @@ class TabRepositoryImpl @Inject constructor(
     }
 
     override suspend fun isTabFavorited(userId: String, tabId: String): Boolean {
-        // First check Room, then fall back to Firestore if needed
-        val isLocalFavorite = tabDao.getTabById(tabId)?.esFavorito ?: false
-        if (isLocalFavorite) return true
+        if (favoriteDao.isFavorite(userId, tabId)) return true
         return try {
             firestoreService.isTabFavorited(userId, tabId)
         } catch (e: Exception) {
@@ -168,28 +166,48 @@ class TabRepositoryImpl @Inject constructor(
     }
 
     override fun getFavoriteTabs(userId: String): Flow<List<Tab>> {
-        // Start background synchronization
+        syncFavoritesFromRemoteOnce(userId)
+        return tabDao.getFavoriteTabs(userId).map { entities ->
+            entities.map { it.toDomain().copy(esFavorito = true) }
+        }
+    }
+
+    private val favoritesSyncedForUser = mutableSetOf<String>()
+
+    private fun syncFavoritesFromRemoteOnce(userId: String) {
+        synchronized(favoritesSyncedForUser) {
+            if (userId in favoritesSyncedForUser) return
+            favoritesSyncedForUser.add(userId)
+        }
         CoroutineScope(ioDispatcher).launch {
             try {
                 val remoteFavorites = firestoreService.getFavoritesByUserId(userId)
                 remoteFavorites.forEach { favDto ->
-                    favoriteDao.insertFavorite(
-                        FavoriteEntity(
-                            tabId = favDto.tabId,
-                            userId = favDto.userId,
-                            titulo = favDto.titulo,
-                            artista = favDto.artista,
-                            timestamp = System.currentTimeMillis()
-                        )
-                    )
+                    upsertLocalFavorite(favDto.userId, favDto.tabId, favDto.titulo, favDto.artista)
                 }
             } catch (e: Exception) {
-                // Log or handle sync error silently for offline mode
+                synchronized(favoritesSyncedForUser) {
+                    favoritesSyncedForUser.remove(userId)
+                }
             }
         }
-        return tabDao.getFavoriteTabs(userId).map { entities ->
-            entities.map { it.toDomain().copy(esFavorito = true) }
-        }
+    }
+
+    private suspend fun upsertLocalFavorite(
+        userId: String,
+        tabId: String,
+        titulo: String,
+        artista: String
+    ) {
+        favoriteDao.insertFavorite(
+            FavoriteEntity(
+                tabId = tabId,
+                userId = userId,
+                titulo = titulo,
+                artista = artista,
+                timestamp = System.currentTimeMillis()
+            )
+        )
     }
 
     override fun getAllTabs(): Flow<List<Tab>> {
@@ -257,20 +275,14 @@ class TabRepositoryImpl @Inject constructor(
     }
 
     override suspend fun addFavorite(userId: String, tabId: String, titulo: String, artista: String) {
-        favoriteDao.insertFavorite(
-            FavoriteEntity(
-                tabId = tabId,
-                userId = userId,
-                titulo = titulo,
-                artista = artista,
-                timestamp = System.currentTimeMillis()
-            )
-        )
-        
+        if (!favoriteDao.isFavorite(userId, tabId)) {
+            upsertLocalFavorite(userId, tabId, titulo, artista)
+        }
+
         tabDao.getTabById(tabId)?.let {
             tabDao.insertTab(it.copy(esFavorito = true))
         }
-        
+
         try {
             val favoriteDto = FavoriteDto(userId = userId, tabId = tabId, titulo = titulo, artista = artista)
             firestoreService.addFavorite(favoriteDto)

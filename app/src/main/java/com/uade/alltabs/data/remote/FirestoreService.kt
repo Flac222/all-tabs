@@ -162,14 +162,22 @@ class FirestoreService @Inject constructor(
             .await()
     }
 
-    // Favorite operations
+    // Favorite operations — use deterministic doc IDs so sync is idempotent (no .add() duplicates)
     suspend fun addFavorite(favoriteDto: FavoriteDto) {
         firestore.collection(FAVORITES_COLLECTION)
-            .add(favoriteDto)
+            .document(favoriteDocumentId(favoriteDto.userId, favoriteDto.tabId))
+            .set(favoriteDto)
             .await()
     }
 
     suspend fun removeFavorite(userId: String, tabId: String) {
+        // Delete canonical doc
+        firestore.collection(FAVORITES_COLLECTION)
+            .document(favoriteDocumentId(userId, tabId))
+            .delete()
+            .await()
+
+        // Also remove legacy duplicates created by the old .add() implementation
         firestore.collection(FAVORITES_COLLECTION)
             .whereEqualTo("userId", userId)
             .whereEqualTo("tabId", tabId)
@@ -185,33 +193,45 @@ class FirestoreService @Inject constructor(
             .get()
             .await()
             .documents
-            .mapNotNull { doc ->
-                try {
-                    doc.toObject(FavoriteDto::class.java)
-                } catch (e: Exception) {
-                    // Fallback: Manually map if there's a type mismatch (e.g., userId is a Reference)
-                    val tabId = doc.getString("tabId") ?: ""
-                    val titulo = doc.getString("titulo") ?: ""
-                    val artista = doc.getString("artista") ?: ""
-                    
-                    // Handle userId as potentially a DocumentReference or String
-                    val userIdValue = when (val rawUserId = doc.get("userId")) {
-                        is String -> rawUserId
-                        is com.google.firebase.firestore.DocumentReference -> rawUserId.id
-                        else -> userId
-                    }
-                    
-                    FavoriteDto(userId = userIdValue, tabId = tabId, titulo = titulo, artista = artista)
-                }
-            }
+            .mapNotNull { doc -> mapFavoriteDocument(doc, userId) }
+            .distinctBy { it.tabId }
     }
 
     suspend fun isTabFavorited(userId: String, tabId: String): Boolean {
+        val canonical = firestore.collection(FAVORITES_COLLECTION)
+            .document(favoriteDocumentId(userId, tabId))
+            .get()
+            .await()
+        if (canonical.exists()) return true
+
         return firestore.collection(FAVORITES_COLLECTION)
             .whereEqualTo("userId", userId)
             .whereEqualTo("tabId", tabId)
+            .limit(1)
             .get()
             .await()
             .isEmpty.not()
+    }
+
+    private fun favoriteDocumentId(userId: String, tabId: String): String =
+        "${userId}_$tabId"
+
+    private fun mapFavoriteDocument(
+        doc: com.google.firebase.firestore.DocumentSnapshot,
+        fallbackUserId: String
+    ): FavoriteDto? {
+        return try {
+            doc.toObject(FavoriteDto::class.java)
+        } catch (e: Exception) {
+            val tabId = doc.getString("tabId") ?: return null
+            val titulo = doc.getString("titulo") ?: ""
+            val artista = doc.getString("artista") ?: ""
+            val userIdValue = when (val rawUserId = doc.get("userId")) {
+                is String -> rawUserId
+                is com.google.firebase.firestore.DocumentReference -> rawUserId.id
+                else -> fallbackUserId
+            }
+            FavoriteDto(userId = userIdValue, tabId = tabId, titulo = titulo, artista = artista)
+        }
     }
 }
