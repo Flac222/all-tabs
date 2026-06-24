@@ -24,19 +24,3 @@ The wrapper JAR should be committed (`!gradle/wrapper/gradle-wrapper.jar` in `.g
 ## Run tests
 
 **Android Studio:** right-click `app/src/test/java` → Run tests, or Gradle → `app` → `verification` → `test`.
-
-**CLI (after wrapper fix):** `.\gradlew.bat test`
-
-## Project status & next steps
-
-See **[docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md)** — single source of truth for completion status, delivery checklist, and profiler instructions.
-
-**Final delivery (23–24/06/2026):** Room ✅ · Features ✅ · Tests 🟡 verify · Profiler report ❌ pending.
-
-## Documentation
-
-| Doc | Purpose |
-|---|---|
-| [docs/PROJECT_STATUS.md](docs/PROJECT_STATUS.md) | Current status, next steps, build fix |
-| [docs/PROFILER_REPORT.md](docs/PROFILER_REPORT.md) | Performance report template (fill in Android Studio) |
-| [docs/DEVELOPMENT_WALKTHROUGH.md](docs/DEVELOPMENT_WALKTHROUGH.md) | Architecture & file map reference |
