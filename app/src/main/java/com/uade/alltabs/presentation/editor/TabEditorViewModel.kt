@@ -117,7 +117,7 @@ class TabEditorViewModel @Inject constructor(
     }
 
     fun addQuickChord(chordName: String) {
-        val slots = when (chordName) {
+        val slots: MutableList<String?> = when (chordName) {
             "C" -> mutableListOf("0", "1", "0", "2", "3", null)
             "G" -> mutableListOf("3", "0", "0", "0", "2", "3")
             "D" -> mutableListOf("2", "3", "2", "0", null, null)

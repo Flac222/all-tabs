@@ -11,6 +11,7 @@ import com.uade.alltabs.presentation.search.SearchScreen
 import com.uade.alltabs.presentation.songdetail.SongDetailScreen
 import com.uade.alltabs.presentation.createTab.CreateTabScreen
 import com.uade.alltabs.presentation.ai.AiJamScreen
+import com.uade.alltabs.presentation.profile.ProfileScreen
 
 @Composable
 fun NavGraph(navController: NavHostController, startDestination: String) {
@@ -45,7 +46,7 @@ fun NavGraph(navController: NavHostController, startDestination: String) {
         }
 
         composable(route = Screen.Profile.route) {
-            // Placeholder for Profile
+            ProfileScreen(navController = navController)
         }
 
         composable(

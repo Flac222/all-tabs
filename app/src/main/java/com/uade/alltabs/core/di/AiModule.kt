@@ -17,7 +17,7 @@ object AiModule {
     fun provideGenerativeModel(): GenerativeModel {
         val apiKey = BuildConfig.GEMINI_API_KEY
         return GenerativeModel(
-            modelName = "gemini-1.5-flash",
+            modelName = "gemini-2.5-flash",
             apiKey = apiKey
         )
     }
